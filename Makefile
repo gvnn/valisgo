@@ -13,6 +13,7 @@ install:
 
 setup: install
 	go get -tool github.com/air-verse/air@latest
+	go get -tool ariga.io/atlas-provider-gorm/gormschema@latest
 
 build:
 	go build -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/server/main.go
