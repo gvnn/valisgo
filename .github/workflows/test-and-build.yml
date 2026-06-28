@@ -38,13 +38,9 @@ jobs:
         run: make build
 
       - name: Run Postgres Migrations
-        run: make migrate-apply-pg
-
-      - name: Run SQLite Migrations
-        run: make migrate-apply-sqlite
+        run: make migrate-apply
 
       - name: Test with the Go CLI
         run: make test
         env:
           PG_URL: "postgres://user:pass@localhost:5432/valisgo?search_path=public&sslmode=disable"
-          SQLITE_URL: "sqlite://data/valisgo.db"
