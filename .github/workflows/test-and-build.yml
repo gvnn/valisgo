@@ -42,5 +42,3 @@ jobs:
 
       - name: Test with the Go CLI
         run: make test
-        env:
-          PG_URL: "postgres://user:pass@localhost:5432/valisgo?search_path=public&sslmode=disable"
