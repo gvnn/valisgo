@@ -4,12 +4,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"valisgo/internal/domain"
 	"valisgo/internal/registry"
 )
 
 type Server struct {
 	protocols    map[string]registry.Protocol
-	repositories []registry.Repository
+	repositories []domain.Repository
 }
 
 func NewServer() *Server {
@@ -22,7 +23,7 @@ func (s *Server) RegisterProtocol(format string, p registry.Protocol) {
 	s.protocols[format] = p
 }
 
-func (s *Server) RegisterRepository(repo registry.Repository) {
+func (s *Server) RegisterRepository(repo domain.Repository) {
 	s.repositories = append(s.repositories, repo)
 }
 
@@ -34,7 +35,7 @@ func (s *Server) SetupRouter() chi.Router {
 
 	for i := range s.repositories {
 		repo := s.repositories[i]
-		proto, ok := s.protocols[repo.Format]
+		proto, ok := s.protocols[string(repo.Registry.Format)]
 		if !ok {
 			continue
 		}

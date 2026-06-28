@@ -3,14 +3,14 @@ package pypi
 import (
 	"net/http"
 
-	"valisgo/internal/registry"
+	"valisgo/internal/domain"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type PyPIProtocol struct{}
 
-func (p *PyPIProtocol) MountRoutes(repo *registry.Repository) chi.Router {
+func (p *PyPIProtocol) MountRoutes(repo *domain.Repository) chi.Router {
 	r := chi.NewRouter()
 
 	r.Get("/simple/{package}", func(w http.ResponseWriter, r *http.Request) {

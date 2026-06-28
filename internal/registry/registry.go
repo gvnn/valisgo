@@ -1,14 +1,11 @@
 package registry
 
 import (
+	"valisgo/internal/domain"
+
 	"github.com/go-chi/chi/v5"
 )
 
-type Repository struct {
-	Name   string
-	Format string
-}
-
 type Protocol interface {
-	MountRoutes(repo *Repository) chi.Router
+	MountRoutes(repo *domain.Repository) chi.Router
 }

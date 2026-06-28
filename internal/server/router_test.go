@@ -3,7 +3,7 @@ package server_test
 import (
 	"testing"
 
-	"valisgo/internal/registry"
+	"valisgo/internal/domain"
 	"valisgo/internal/server"
 
 	"github.com/go-chi/chi/v5"
@@ -11,7 +11,7 @@ import (
 
 type stubProtocol struct{}
 
-func (s *stubProtocol) MountRoutes(repo *registry.Repository) chi.Router {
+func (s *stubProtocol) MountRoutes(repo *domain.Repository) chi.Router {
 	return chi.NewRouter()
 }
 

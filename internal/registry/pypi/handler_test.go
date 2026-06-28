@@ -5,14 +5,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"valisgo/internal/registry"
+	"valisgo/internal/domain"
 	"valisgo/internal/registry/pypi"
 )
 
 func newTestRouter(t *testing.T) http.Handler {
 	t.Helper()
 	p := &pypi.PyPIProtocol{}
-	repo := &registry.Repository{Name: "test-repo", Format: "pypi"}
+	repo := &domain.Repository{Name: "test-repo", Registry: domain.Registry{Format: domain.FormatPyPI}}
 	return p.MountRoutes(repo)
 }
 

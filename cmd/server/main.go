@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"valisgo/internal/database"
+	"valisgo/internal/domain"
 	"valisgo/internal/env"
-	"valisgo/internal/registry"
 	"valisgo/internal/registry/pypi"
 	"valisgo/internal/server"
 	"valisgo/internal/server/management"
@@ -35,7 +35,10 @@ func main() {
 	srv := server.NewServer()
 
 	srv.RegisterProtocol("pypi", &pypi.PyPIProtocol{})
-	srv.RegisterRepository(registry.Repository{Name: "my-pypi", Format: "pypi"})
+	srv.RegisterRepository(domain.Repository{
+		Name: "my-pypi",
+		Registry: domain.Registry{Format: domain.FormatPyPI},
+	})
 
 	r := srv.SetupRouter()
 
