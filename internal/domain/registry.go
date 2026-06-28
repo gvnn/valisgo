@@ -13,7 +13,6 @@ const (
 type Registry struct {
 	gorm.Model
 
-	ID     uint           `gorm:"primaryKey"`
 	Name   string         `gorm:"size:255;uniqueIndex;not null"`
 	Format RegistryFormat `gorm:"type:varchar(255);default:'file'"`
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -13,8 +12,6 @@ func NewConnection(driver string, dsn string) (*gorm.DB, error) {
 	var err error
 
 	switch driver {
-	case "sqlite":
-		db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	case "postgres":
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 

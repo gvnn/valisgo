@@ -19,8 +19,7 @@
 2. **Apply database migrations**:
 
    ```bash
-   make migrate-apply-sqlite # Automatically creates data/valisgo.db
-   make migrate-apply-pg
+   make migrate-apply
    ```
 
 3. **Start the development server** (with hot-reload):
@@ -38,6 +37,5 @@ Migrations are generated and applied via Atlas.
   ```
 - **Apply migrations**:
   ```bash
-  make migrate-apply-pg     # Applies to Postgres
-  make migrate-apply-sqlite # Applies to SQLite
+  make migrate-apply        # Applies to Postgres
   ```
