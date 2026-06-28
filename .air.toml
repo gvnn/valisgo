@@ -1,0 +1,5 @@
+#:schema https://json.schemastore.org/any.json
+
+[build]
+cmd = "go build -o bin/valisgo cmd/server/main.go"
+entrypoint = "./bin/valisgo"
