@@ -5,15 +5,46 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+          POSTGRES_DB: valisgo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v7
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: "1.26.x"
+
+      - name: Install Atlas CLI
+        uses: ariga/setup-atlas@v0
+
       - name: Install dependencies
         run: make install
+
       - name: Build
         run: make build
+
+      - name: Run Postgres Migrations
+        run: make migrate-apply-pg
+
+      - name: Run SQLite Migrations
+        run: make migrate-apply-sqlite
+
       - name: Test with the Go CLI
         run: make test
+        env:
+          PG_URL: "postgres://user:pass@localhost:5432/valisgo?search_path=public&sslmode=disable"
+          SQLITE_URL: "sqlite://data/valisgo.db"
