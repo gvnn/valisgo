@@ -6,6 +6,7 @@ import (
 	"valisgo/internal/domain"
 	"valisgo/internal/registry"
 	"valisgo/internal/registry/pypi"
+	"valisgo/internal/storage"
 	"valisgo/internal/store"
 
 	"github.com/go-chi/chi/v5"
@@ -19,14 +20,17 @@ type API struct {
 	protocolHandlers map[domain.RegistryFormat]chi.Router
 }
 
-func NewAPI(db *gorm.DB) *API {
+func NewAPI(db *gorm.DB, storage storage.Storage) *API {
 	api := &API{
 		registryStore:    store.NewRegistryStore(db),
 		repositoryStore:  store.NewRepositoryStore(db),
 		protocolHandlers: make(map[domain.RegistryFormat]chi.Router),
 	}
 
-	api.RegisterProtocolHandler(domain.FormatPyPI, &pypi.PyPIProtocol{})
+	packageStore := store.NewPackageStore(db)
+	packageFileStore := store.NewPackageFileStore(db)
+
+	api.RegisterProtocolHandler(domain.FormatPyPI, pypi.NewPyPIProtocol(packageStore, packageFileStore, storage))
 
 	return api
 }

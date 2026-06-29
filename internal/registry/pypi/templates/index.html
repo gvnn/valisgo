@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>{{.RepoName}} index</title>
+</head>
+
+<body>
+  {{range .Packages}} <a
+    href="/registries/{{$.RegistryName}}/repositories/{{$.RepoName}}/simple/{{.NormalizedName}}/">{{.Name}}</a>
+  {{end}}
+</body>
+
+</html>

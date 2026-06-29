@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Links for {{.PackageName}}</title>
+</head>
+
+<body>
+  <h1>Links for {{.PackageName}}</h1>
+  {{range .Files}} <a
+    href="/registries/{{$.RegistryName}}/repositories/{{$.RepoName}}/packages/{{.Filename}}#sha256={{.Hash}}">{{.Filename}}</a><br />
+  {{end}}
+</body>
+
+</html>
