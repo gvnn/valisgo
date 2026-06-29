@@ -32,7 +32,7 @@ func TestRepositoryStore_All(t *testing.T) {
 	})
 }
 
-func TestRepositoryStore_GetByName(t *testing.T) {
+func TestRepositoryStore_GetByNameAndRegistryID(t *testing.T) {
 	testutil.RunInTransaction(t, func(tx *gorm.DB) {
 		registry := &domain.Registry{Name: "test-registry-get", Format: domain.FormatPyPI}
 		tx.Create(registry)
@@ -42,7 +42,7 @@ func TestRepositoryStore_GetByName(t *testing.T) {
 
 		s := store.NewRepositoryStore(tx)
 
-		foundRepo, _ := s.GetByName(repo.Name)
+		foundRepo, _ := s.GetByNameAndRegistryID(repo.Name, registry.ID)
 
 		if foundRepo.ID != repo.ID {
 			t.Errorf("expected repo ID %d, got %d", repo.ID, foundRepo.ID)

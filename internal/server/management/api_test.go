@@ -14,6 +14,10 @@ func (m *mockRegistryStore) All() ([]*domain.Registry, error) {
 	return []*domain.Registry{}, nil
 }
 
+func (m *mockRegistryStore) GetByName(string) (*domain.Registry, error) {
+	return nil, nil
+}
+
 func TestListRegistries(t *testing.T) {
 
 	api := &API{
