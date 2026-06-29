@@ -24,6 +24,9 @@ dev:
 run:
 	go run ./cmd/server
 
+seed:
+	DB_DRIVER="postgres" DB_DSN=$(PG_URL) go run ./cmd/seed
+
 test:
 	TEST_DB_DRIVER="postgres" TEST_DB_DSN=$(PG_URL) go test ./...
 
