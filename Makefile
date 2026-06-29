@@ -39,3 +39,6 @@ migrate-diff:
 
 migrate-apply:
 	atlas migrate apply --env postgres --url $(PG_URL)
+
+migrate-down:
+	atlas migrate down --env postgres --url $(PG_URL)

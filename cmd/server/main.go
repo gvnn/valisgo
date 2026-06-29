@@ -29,7 +29,9 @@ func setupDatabase() *gorm.DB {
 func main() {
 	db := setupDatabase()
 
-	srv := server.NewServer()
+	enforcer := server.SetupCasbin(db)
+
+	srv := server.NewServer(enforcer)
 
 	r := srv.SetupRouter()
 
