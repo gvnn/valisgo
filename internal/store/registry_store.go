@@ -7,20 +7,17 @@ import (
 )
 
 type registryStore struct {
-	db *gorm.DB
+	*BaseStore[domain.Registry]
 }
 
 func NewRegistryStore(db *gorm.DB) domain.RegistryStore {
-	return &registryStore{db: db}
+	return &registryStore{
+		BaseStore: &BaseStore[domain.Registry]{db: db},
+	}
 }
 
 func (s *registryStore) All() ([]*domain.Registry, error) {
 	var registries []*domain.Registry
-
 	err := s.db.Find(&registries).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return registries, nil
+	return registries, err
 }
