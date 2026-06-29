@@ -6,11 +6,10 @@ import (
 	"net/http"
 
 	"valisgo/internal/database"
-	"valisgo/internal/domain"
 	"valisgo/internal/env"
-	"valisgo/internal/registry/pypi"
 	"valisgo/internal/server"
 	"valisgo/internal/server/management"
+	"valisgo/internal/server/registries"
 
 	"gorm.io/gorm"
 )
@@ -30,23 +29,19 @@ func setupDatabase() *gorm.DB {
 func main() {
 	db := setupDatabase()
 
-	mgmtAPI := management.NewAPI(db)
-
 	srv := server.NewServer()
 
-	srv.RegisterProtocol("pypi", &pypi.PyPIProtocol{})
-	srv.RegisterRepository(domain.Repository{
-		Name: "my-pypi",
-		Registry: domain.Registry{Format: domain.FormatPyPI},
-	})
-
 	r := srv.SetupRouter()
-
-	r.Mount("/manage", mgmtAPI.MountRoutes())
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello World!"))
 	})
+
+	mgmtAPI := management.NewAPI(db)
+	r.Mount("/manage", mgmtAPI.MountRoutes())
+
+	registriesAPI := registries.NewAPI(db)
+	r.Mount("/registries", registriesAPI.MountRoutes())
 
 	log.Println("Server listening on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", r))

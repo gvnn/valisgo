@@ -21,3 +21,14 @@ func (s *registryStore) All() ([]*domain.Registry, error) {
 	err := s.db.Find(&registries).Error
 	return registries, err
 }
+
+func (s *registryStore) GetByName(name string) (*domain.Registry, error) {
+	var registry domain.Registry
+
+	err := s.db.Where("name = ?", name).First(&registry).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &registry, nil
+}

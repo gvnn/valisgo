@@ -3,7 +3,6 @@ package server_test
 import (
 	"testing"
 
-	"valisgo/internal/domain"
 	"valisgo/internal/server"
 
 	"github.com/go-chi/chi/v5"
@@ -11,20 +10,8 @@ import (
 
 type stubProtocol struct{}
 
-func (s *stubProtocol) MountRoutes(repo *domain.Repository) chi.Router {
+func (s *stubProtocol) MountRoutes() chi.Router {
 	return chi.NewRouter()
-}
-
-func TestNewServer(t *testing.T) {
-	srv := server.NewServer()
-	if srv == nil {
-		t.Fatal("NewServer returned nil")
-	}
-}
-
-func TestRegisterProtocol(t *testing.T) {
-	srv := server.NewServer()
-	srv.RegisterProtocol("pypi", &stubProtocol{})
 }
 
 func TestSetupRouterNotNil(t *testing.T) {

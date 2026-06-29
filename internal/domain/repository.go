@@ -1,16 +1,30 @@
 package domain
 
-import "gorm.io/gorm"
+import (
+	"context"
+
+	"gorm.io/gorm"
+)
+
+const RepoCtxKey = contextKey("repository")
+
+func RepositoryFromContext(ctx context.Context) *Repository {
+	repo, ok := ctx.Value(RepoCtxKey).(*Repository)
+	if !ok {
+		return nil
+	}
+	return repo
+}
 
 type Repository struct {
 	gorm.Model
 
-	Name       string `gorm:"size:255;not null"`
+	Name       string `gorm:"size:255;uniqueIndex;not null"`
 	RegistryID uint   `gorm:"not null"`
 	Registry   Registry
 }
 
 type RepositoryStore interface {
 	All() ([]*Repository, error)
-	GetByName(name string) (*Repository, error)
+	GetByNameAndRegistryID(name string, registryID uint) (*Repository, error)
 }

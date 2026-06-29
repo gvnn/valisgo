@@ -22,8 +22,16 @@ func (s *repositoryStore) All() ([]*domain.Repository, error) {
 	return repositories, err
 }
 
-func (s *repositoryStore) GetByName(name string) (*domain.Repository, error) {
+func (s *repositoryStore) GetByNameAndRegistryID(name string, registryID uint) (*domain.Repository, error) {
 	var repo domain.Repository
-	err := s.db.Preload("Registry").Where("name = ?", name).First(&repo).Error
-	return &repo, err
+
+	err := s.db.Preload("Registry").
+		Where("name = ? AND registry_id = ?", name, registryID).
+		First(&repo).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &repo, nil
 }

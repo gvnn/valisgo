@@ -1,6 +1,19 @@
 package domain
 
-import "gorm.io/gorm"
+import (
+	"context"
+
+	"gorm.io/gorm"
+)
+
+type contextKey string
+
+const RegistryCtxKey = contextKey("registry")
+
+func RegistryFromContext(ctx context.Context) *Registry {
+	reg, _ := ctx.Value(RegistryCtxKey).(*Registry)
+	return reg
+}
 
 type RegistryFormat string
 
@@ -19,4 +32,5 @@ type Registry struct {
 
 type RegistryStore interface {
 	All() ([]*Registry, error)
+	GetByName(name string) (*Registry, error)
 }
