@@ -7,7 +7,6 @@ import (
 	"gocloud.dev/blob"
 )
 
-// Storage defines the interface for our blob storage operations.
 type Storage interface {
 	Put(ctx context.Context, key string, data io.Reader) error
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
@@ -18,7 +17,6 @@ type blobStorage struct {
 	bucket *blob.Bucket
 }
 
-// NewBlobStorage creates a new Storage instance backed by a gocloud.dev/blob bucket.
 func NewBlobStorage(bucket *blob.Bucket) Storage {
 	return &blobStorage{
 		bucket: bucket,
