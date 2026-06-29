@@ -22,7 +22,13 @@
    make migrate-apply
    ```
 
-3. **Start the development server** (with hot-reload):
+3. **Seed the database** with initial data:
+
+   ```bash
+   make seed
+   ```
+
+4. **Start the development server** (with hot-reload):
    ```bash
    make dev
    ```
