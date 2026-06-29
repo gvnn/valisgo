@@ -14,8 +14,8 @@ func (s *stubProtocol) MountRoutes() chi.Router {
 	return chi.NewRouter()
 }
 
-func TestSetupRouterNotNil(t *testing.T) {
-	srv := server.NewServer()
+func TestServer_SetupRouter(t *testing.T) {
+	srv := server.NewServer(nil)
 	r := srv.SetupRouter()
 	if r == nil {
 		t.Fatal("SetupRouter returned nil router")

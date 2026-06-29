@@ -35,7 +35,10 @@ Migrations are generated and applied via Atlas.
   ```bash
   MIGRATION_NAME="add_users_table" make migrate-diff
   ```
-- **Apply migrations**:
   ```bash
   make migrate-apply        # Applies to Postgres
   ```
+
+## Authorization (Casbin)
+
+`valisgo` uses [Casbin](https://casbin.org/) (via `gorm-adapter`) to handle Role-Based Access Control (RBAC).
