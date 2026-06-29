@@ -1,80 +1,90 @@
 package pypi_test
 
 import (
-	"context"
+	"bytes"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"valisgo/internal/domain"
-	"valisgo/internal/registry/pypi"
+	"valisgo/internal/testutil"
+
+	"gorm.io/gorm"
 )
 
-func withRepo(req *http.Request) *http.Request {
-	repo := &domain.Repository{Name: "test-repo"}
-	ctx := context.WithValue(req.Context(), domain.RepoCtxKey, repo)
-	return req.WithContext(ctx)
-}
-
-func newTestRouter(t *testing.T) http.Handler {
-	t.Helper()
-	p := &pypi.PyPIProtocol{}
-	return p.MountRoutes()
-}
-
 func TestSimplePackageMetadata(t *testing.T) {
-	r := newTestRouter(t)
+	testutil.RunInTransaction(t, func(tx *gorm.DB) {
+		r := testutil.NewPyPITestRouter(t, tx)
 
-	req := httptest.NewRequest(http.MethodGet, "/simple/requests", nil)
-	req = withRepo(req)
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodGet, "/simple/", nil)
+		reg, repo := testutil.SetupPyPITestDB(tx)
+		req = testutil.WithPyPIContext(req, reg, repo)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
-	if body := rec.Body.String(); body != "hosted pypi metadata for package 'requests' in repository 'test-repo'" {
-		t.Errorf("unexpected body: %q", body)
-	}
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "test-repo index") {
+			t.Errorf("unexpected body: %q", rec.Body.String())
+		}
+	})
 }
 
-func TestPackageDownload(t *testing.T) {
-	r := newTestRouter(t)
+func TestUploadAndDownload(t *testing.T) {
+	testutil.RunInTransaction(t, func(tx *gorm.DB) {
+		r := testutil.NewPyPITestRouter(t, tx)
 
-	req := httptest.NewRequest(http.MethodGet, "/packages/requests/2.31.0/requests-2.31.0-py3-none-any.whl", nil)
-	req = withRepo(req)
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+		// Upload
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		w.WriteField(":action", "file_upload")
+		w.WriteField("name", "requests")
+		w.WriteField("version", "2.31.0")
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
-	if body := rec.Body.String(); body != "Downloading wheel from repository: test-repo" {
-		t.Errorf("unexpected body: %q", body)
-	}
-}
+		fw, _ := w.CreateFormFile("content", "requests-2.31.0-py3-none-any.whl")
+		fw.Write([]byte("dummy content"))
+		w.Close()
 
-func TestUpload(t *testing.T) {
-	r := newTestRouter(t)
+		reg, repo := testutil.SetupPyPITestDB(tx)
 
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	req = withRepo(req)
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodPost, "/", &b)
+		req.Header.Set("Content-Type", w.FormDataContentType())
+		req = testutil.WithPyPIContext(req, reg, repo)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d. Body: %s", rec.Code, rec.Body.String())
+		}
+
+		// Download
+		req2 := httptest.NewRequest(http.MethodGet, "/packages/requests-2.31.0-py3-none-any.whl", nil)
+		req2 = testutil.WithPyPIContext(req2, reg, repo)
+		rec2 := httptest.NewRecorder()
+		r.ServeHTTP(rec2, req2)
+
+		if rec2.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec2.Code)
+		}
+		if rec2.Body.String() != "dummy content" {
+			t.Errorf("unexpected body: %q", rec2.Body.String())
+		}
+	})
 }
 
 func TestUnknownRouteReturns404(t *testing.T) {
-	r := newTestRouter(t)
+	testutil.RunInTransaction(t, func(tx *gorm.DB) {
+		r := testutil.NewPyPITestRouter(t, tx)
+		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
 
-	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
-	rec := httptest.NewRecorder()
-	r.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
-	}
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected 404, got %d", rec.Code)
+		}
+	})
 }
