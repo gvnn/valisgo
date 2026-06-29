@@ -12,4 +12,5 @@ type Repository struct {
 
 type RepositoryStore interface {
 	All() ([]*Repository, error)
+	GetByName(name string) (*Repository, error)
 }
