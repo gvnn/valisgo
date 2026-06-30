@@ -29,7 +29,7 @@ jobs:
           curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
           chmod +x wait-for
           echo "Waiting for Valisgo server to be ready..."
-          ./wait-for localhost:8080 -t 30 -- echo "Services are up!"
+          ./wait-for http://localhost:8080 -- echo "Services are up!"
 
       - name: Seed Database
         run: |
