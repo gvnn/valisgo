@@ -1,0 +1,25 @@
+{{define "title"}}{{.RegistryName}} Repositories{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+  <ul>
+    <li><a href="/browse">Registries</a></li>
+    <li>{{.RegistryName}}</li>
+  </ul>
+</nav>
+
+<section aria-labelledby="repositories-heading">
+  <h2 id="repositories-heading">Repositories</h2>
+  {{if not .Repositories}}
+  <p>No repositories found.</p>
+  {{else}}
+  <ul>
+    {{range .Repositories}}
+    <li>
+      <a href="/browse/{{$.RegistryName}}/{{.Name}}">{{.Name}}</a>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}

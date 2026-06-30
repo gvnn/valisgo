@@ -11,6 +11,7 @@ import (
 	"valisgo/internal/database"
 	"valisgo/internal/env"
 	"valisgo/internal/server"
+	"valisgo/internal/server/browse"
 	"valisgo/internal/server/management"
 	"valisgo/internal/server/registries"
 	"valisgo/internal/storage"
@@ -74,6 +75,9 @@ func main() {
 
 	registriesAPI := registries.NewAPI(db, blobStorage)
 	r.Mount("/registries", registriesAPI.MountRoutes())
+
+	browseAPI := browse.NewAPI(db, blobStorage)
+	r.Mount("/browse", browseAPI.MountRoutes())
 
 	log.Println("Server listening on :8080...")
 	log.Fatal(http.ListenAndServe(":8080", r))

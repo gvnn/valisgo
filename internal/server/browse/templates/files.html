@@ -1,0 +1,41 @@
+{{define "title"}}{{.PackageName}} Files{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+  <ul>
+    <li><a href="/browse">Registries</a></li>
+    <li><a href="/browse/{{.RegistryName}}">{{.RegistryName}}</a></li>
+    <li><a href="/browse/{{.RegistryName}}/{{.RepositoryName}}">{{.RepositoryName}}</a></li>
+    <li>{{.PackageName}}</li>
+  </ul>
+</nav>
+
+<section aria-labelledby="files-heading">
+  <h2 id="files-heading">Files</h2>
+  {{if not .Files}}
+  <p>No files found.</p>
+  {{else}}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Filename</th>
+        <th scope="col">Version</th>
+        <th scope="col">Size (bytes)</th>
+        <th scope="col">Hash</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Files}}
+      <tr>
+        <td><a href="/browse/{{$.RegistryName}}/{{$.RepositoryName}}/{{$.PackageName}}/{{.Filename}}">{{.Filename}}</a>
+        </td>
+        <td>{{.Version}}</td>
+        <td>{{.Size}}</td>
+        <td><code>{{.Hash}}</code></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</section>
+{{end}}

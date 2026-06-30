@@ -1,0 +1,27 @@
+{{define "title"}}{{.RegistryName}} / {{.RepositoryName}} Packages{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+  <ul>
+    <li><a href="/browse">Registries</a></li>
+    <li><a href="/browse/{{.RegistryName}}">{{.RegistryName}}</a></li>
+    <li>{{.RepositoryName}}</li>
+  </ul>
+</nav>
+
+<section aria-labelledby="packages-heading">
+  <h2 id="packages-heading">Packages</h2>
+  {{if not .Packages}}
+  <p>No packages found.</p>
+  {{else}}
+  <ul>
+    {{range .Packages}}
+    <li>
+      <a href="/browse/{{$.RegistryName}}/{{$.RepositoryName}}/{{.NormalizedName}}">{{.Name}}</a>
+      {{if ne .Name .NormalizedName}}<small>({{.NormalizedName}})</small>{{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}
