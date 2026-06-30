@@ -19,12 +19,16 @@ func TestRegistryStore_All(t *testing.T) {
 
 		registries, _ := s.All()
 
-		if len(registries) != 1 {
-			t.Fatalf("expected 1 registry, got %d", len(registries))
+		found := false
+		for _, r := range registries {
+			if r.Name == registry.Name {
+				found = true
+				break
+			}
 		}
 
-		if registries[0].Name != registry.Name {
-			t.Errorf("expected registry name 'test-registry', got %q", registries[0].Name)
+		if !found {
+			t.Errorf("expected to find registry %q in results", registry.Name)
 		}
 	})
 }

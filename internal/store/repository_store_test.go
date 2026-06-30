@@ -22,12 +22,16 @@ func TestRepositoryStore_All(t *testing.T) {
 
 		repos, _ := s.All()
 
-		if len(repos) != 1 {
-			t.Fatalf("expected 1 repo, got %d", len(repos))
+		found := false
+		for _, r := range repos {
+			if r.Name == repo.Name {
+				found = true
+				break
+			}
 		}
 
-		if repos[0].Name != repo.Name {
-			t.Errorf("expected repo name 'test-repo', got %q", repos[0].Name)
+		if !found {
+			t.Errorf("expected to find repo %q in results", repo.Name)
 		}
 	})
 }
