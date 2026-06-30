@@ -37,8 +37,19 @@ jobs:
       - name: Build
         run: make build
 
+      - name: Upload Valisgo Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: valisgo-binary
+          path: bin/valisgo
+          retention-days: 1
+
       - name: Run Postgres Migrations
         run: make migrate-apply
 
       - name: Test with the Go CLI
         run: make test
+
+  integration-test:
+    needs: build
+    uses: ./.github/workflows/integration-test.yml
