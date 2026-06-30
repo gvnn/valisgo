@@ -8,3 +8,14 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: pass
       POSTGRES_DB: valisgo
+
+  valisgo:
+    build: .
+    container_name: valisgo-server
+    ports:
+      - "8080:8080"
+    environment:
+      DB_DRIVER: postgres
+      DB_DSN: postgres://user:pass@postgres:5432/valisgo?sslmode=disable
+    depends_on:
+      - postgres
