@@ -19,8 +19,8 @@ func RepositoryFromContext(ctx context.Context) *Repository {
 type Repository struct {
 	gorm.Model
 
-	Name       string `gorm:"size:255;uniqueIndex;not null"`
-	RegistryID uint   `gorm:"not null"`
+	Name       string `gorm:"size:255;not null;uniqueIndex:idx_name_registry"`
+	RegistryID uint   `gorm:"not null;uniqueIndex:idx_name_registry"`
 	Registry   Registry
 }
 

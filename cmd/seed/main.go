@@ -45,5 +45,18 @@ func main() {
 	}
 	log.Printf("Repository 'default' for PyPI (ID: %d) seeded.", defaultRepo.ID)
 
+	// Create File registry if it doesn't exist
+	var fileReg domain.Registry
+	if err := db.FirstOrCreate(&fileReg, domain.Registry{Name: "myfile", Format: domain.FormatFile}).Error; err != nil {
+		log.Fatalf("failed to seed file registry: %v", err)
+	}
+	log.Printf("Registry File (ID: %d) seeded.", fileReg.ID)
+
+	var fileRepo domain.Repository
+	if err := db.FirstOrCreate(&fileRepo, domain.Repository{Name: "myrepo", RegistryID: fileReg.ID}).Error; err != nil {
+		log.Fatalf("failed to seed file repository: %v", err)
+	}
+	log.Printf("Repository 'myrepo' for File (ID: %d) seeded.", fileRepo.ID)
+
 	log.Println("Seeding completed successfully.")
 }

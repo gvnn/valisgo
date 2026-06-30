@@ -62,3 +62,6 @@ jobs:
 
       - name: Run PyPI Integration Test
         run: bash tests/integration/pypi/test.sh
+
+      - name: Run File Integration Test
+        run: bash tests/integration/file/test.sh
