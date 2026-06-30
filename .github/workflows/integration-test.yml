@@ -1,0 +1,64 @@
+name: Integration Test
+
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+          POSTGRES_DB: valisgo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+
+      - name: Install Atlas CLI
+        uses: ariga/setup-atlas@v0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Download Valisgo Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: valisgo-binary
+          path: bin
+
+      - name: Make Binary Executable
+        run: chmod +x bin/valisgo
+
+      - name: Run Migrations and Seed Database
+        run: |
+          make migrate-apply
+          make seed
+
+      - name: Start Valisgo Server
+        run: |
+          ./bin/valisgo &
+          curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
+          chmod +x wait-for
+          echo "Waiting for Valisgo server to be ready..."
+          ./wait-for http://localhost:8080 -t 30 -- echo "Valisgo is up!"
+
+      - name: Run PyPI Integration Test
+        run: bash tests/integration/pypi/test.sh
