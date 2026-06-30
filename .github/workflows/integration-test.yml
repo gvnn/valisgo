@@ -31,6 +31,10 @@ jobs:
           echo "Waiting for Valisgo server to be ready..."
           ./wait-for http://localhost:8080 -- echo "Services are up!"
 
+      - name: Dump Docker Logs on Failure
+        if: failure()
+        run: docker compose logs
+
       - name: Seed Database
         run: |
           make migrate-apply
