@@ -23,4 +23,5 @@ services:
       DB_DRIVER: postgres
       DB_DSN: postgres://user:pass@postgres:5432/valisgo?sslmode=disable
     depends_on:
-      - postgres
+      database:
+        condition: service_healthy
