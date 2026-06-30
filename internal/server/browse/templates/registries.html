@@ -1,0 +1,24 @@
+{{define "title"}}Registries{{end}}
+
+{{define "content"}}
+<nav aria-label="breadcrumb">
+  <ul>
+    <li>Registries</li>
+  </ul>
+</nav>
+
+<section aria-labelledby="registries-heading">
+  <h2 id="registries-heading">Available Registries</h2>
+  {{if not .}}
+  <p>No registries found.</p>
+  {{else}}
+  <ul>
+    {{range .}}
+    <li>
+      <a href="/browse/{{.Name}}">{{.Name}}</a> <small>({{.Format}})</small>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}

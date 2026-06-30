@@ -1,0 +1,26 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>{{template "title" .}} - Valisgo Browse</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.classless.min.css">
+</head>
+
+<body>
+  <header>
+    <h1>Valisgo Registry Browser</h1>
+  </header>
+
+  <main>
+    {{template "content" .}}
+  </main>
+
+  <footer>
+    <p><small>&copy; Valisgo Package Registry</small></p>
+  </footer>
+</body>
+
+</html>
+{{end}}
