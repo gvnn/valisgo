@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: pass
       POSTGRES_DB: valisgo
     healthcheck:
-      test: [ "CMD-SHELL", "sh -c 'pg_isready -U user -d valisgo'" ]
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U user -d valisgo'"]
       interval: 5s
       timeout: 3s
       retries: 10
