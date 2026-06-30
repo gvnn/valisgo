@@ -8,6 +8,11 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: pass
       POSTGRES_DB: valisgo
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U user -d valisgo'" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   valisgo:
     build: .

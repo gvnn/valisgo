@@ -1,0 +1,40 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v7
+      
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Start Services
+        run: |
+          docker-compose up -d --build
+          echo "Waiting for Valisgo server to be ready..."
+          curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
+          chmod +x wait-for
+          ./wait-for localhost:8080 -t 30 -- echo "Services are up!"
+          
+      - name: Seed Database
+        run: |
+          make migrate-apply
+          make seed
+
+      - name: Run PyPI Integration Test
+        run: bash tests/integration/pypi/test.sh
