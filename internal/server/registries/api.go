@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"valisgo/internal/domain"
 	"valisgo/internal/registry"
+	"valisgo/internal/registry/file"
 	"valisgo/internal/registry/pypi"
 	"valisgo/internal/storage"
 	"valisgo/internal/store"
@@ -31,6 +32,7 @@ func NewAPI(db *gorm.DB, storage storage.Storage) *API {
 	packageFileStore := store.NewPackageFileStore(db)
 
 	api.RegisterProtocolHandler(domain.FormatPyPI, pypi.NewPyPIProtocol(packageStore, packageFileStore, storage))
+	api.RegisterProtocolHandler(domain.FormatFile, file.NewFileProtocol(packageStore, packageFileStore, storage))
 
 	return api
 }

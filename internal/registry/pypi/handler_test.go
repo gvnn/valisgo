@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"valisgo/internal/domain"
 	"valisgo/internal/testutil"
 
 	"gorm.io/gorm"
@@ -18,8 +19,8 @@ func TestSimplePackageMetadata(t *testing.T) {
 		r := testutil.NewPyPITestRouter(t, tx)
 
 		req := httptest.NewRequest(http.MethodGet, "/simple/", nil)
-		reg, repo := testutil.SetupPyPITestDB(tx)
-		req = testutil.WithPyPIContext(req, reg, repo)
+		reg, repo := testutil.SetupTestRegistry(tx, "test-registry", domain.FormatPyPI, "test-repo")
+		req = testutil.WithRegistryContext(req, reg, repo)
 
 		rec := httptest.NewRecorder()
 		r.ServeHTTP(rec, req)
@@ -48,11 +49,11 @@ func TestUploadAndDownload(t *testing.T) {
 		fw.Write([]byte("dummy content"))
 		w.Close()
 
-		reg, repo := testutil.SetupPyPITestDB(tx)
+		reg, repo := testutil.SetupTestRegistry(tx, "test-registry", domain.FormatPyPI, "test-repo")
 
 		req := httptest.NewRequest(http.MethodPost, "/", &b)
 		req.Header.Set("Content-Type", w.FormDataContentType())
-		req = testutil.WithPyPIContext(req, reg, repo)
+		req = testutil.WithRegistryContext(req, reg, repo)
 
 		rec := httptest.NewRecorder()
 		r.ServeHTTP(rec, req)
@@ -63,7 +64,7 @@ func TestUploadAndDownload(t *testing.T) {
 
 		// Download
 		req2 := httptest.NewRequest(http.MethodGet, "/packages/requests-2.31.0-py3-none-any.whl", nil)
-		req2 = testutil.WithPyPIContext(req2, reg, repo)
+		req2 = testutil.WithRegistryContext(req2, reg, repo)
 		rec2 := httptest.NewRecorder()
 		r.ServeHTTP(rec2, req2)
 
