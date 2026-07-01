@@ -4,13 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
-	"regexp"
-	"strings"
 
 	"valisgo/internal/domain"
 	"valisgo/internal/storage"
@@ -41,12 +40,6 @@ func NewPyPIProtocol(packageStore domain.PackageStore, packageFileStore domain.P
 	}
 }
 
-// NormalizeName implements PEP 503 normalization.
-func NormalizeName(name string) string {
-	re := regexp.MustCompile(`[-_.]+`)
-	return strings.ToLower(re.ReplaceAllString(name, "-"))
-}
-
 func (p *PyPIProtocol) MountRoutes() chi.Router {
 	r := chi.NewRouter()
 
@@ -67,9 +60,14 @@ func (p *PyPIProtocol) handleSimpleIndex(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
 	reg := domain.RegistryFromContext(req.Context())
+
+	if acceptsJSON(req) {
+		p.serveSimpleIndexJSON(w, pkgs)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	data := struct {
 		RepoName     string
@@ -107,9 +105,14 @@ func (p *PyPIProtocol) handleSimplePackage(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
 	reg := domain.RegistryFromContext(req.Context())
+
+	if acceptsJSON(req) {
+		p.serveSimplePackageJSON(w, reg, repo, pkg, files)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	data := struct {
 		RepoName     string
@@ -124,6 +127,52 @@ func (p *PyPIProtocol) handleSimplePackage(w http.ResponseWriter, req *http.Requ
 	}
 
 	if err := packageTemplate.ExecuteTemplate(w, "package.html", data); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (p *PyPIProtocol) serveSimpleIndexJSON(w http.ResponseWriter, pkgs []*domain.Package) {
+	w.Header().Set("Content-Type", "application/vnd.pypi.simple.v1+json")
+	resp := SimpleIndexResponse{
+		Meta: SimpleMeta{APIVersion: "1.1"},
+	}
+	for _, pkg := range pkgs {
+		resp.Projects = append(resp.Projects, SimpleProject{Name: pkg.NormalizedName})
+	}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
+func (p *PyPIProtocol) serveSimplePackageJSON(w http.ResponseWriter, reg *domain.Registry, repo *domain.Repository, pkg *domain.Package, files []*domain.PackageFile) {
+	w.Header().Set("Content-Type", "application/vnd.pypi.simple.v1+json")
+	resp := SimplePackageResponse{
+		Meta:  SimpleMeta{APIVersion: "1.1"},
+		Name:  pkg.Name,
+		Files: []SimpleFile{},
+	}
+
+	versionsSet := make(map[string]struct{})
+	for _, file := range files {
+		if _, exists := versionsSet[file.Version]; !exists {
+			versionsSet[file.Version] = struct{}{}
+			resp.Versions = append(resp.Versions, file.Version)
+		}
+
+		resp.Files = append(resp.Files, SimpleFile{
+			Filename:   file.Filename,
+			URL:        fmt.Sprintf("/registries/%s/repositories/%s/packages/%s", reg.Name, repo.Name, file.Filename),
+			Hashes:     SimpleFileHashes{SHA256: file.Hash},
+			Size:       file.Size,
+			UploadTime: file.CreatedAt.UTC().Format("2006-01-02T15:04:05.000000Z"),
+		})
+	}
+
+	if resp.Versions == nil {
+		resp.Versions = []string{}
+	}
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }
