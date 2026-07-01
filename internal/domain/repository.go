@@ -36,9 +36,10 @@ type Repository struct {
 }
 
 type VirtualRepoMember struct {
-	VirtualRepoID uint `gorm:"primaryKey"`
-	MemberRepoID  uint `gorm:"primaryKey"`
-	Priority      int  `gorm:"not null;default:0"`
+	VirtualRepoID uint       `gorm:"primaryKey"`
+	MemberRepoID  uint       `gorm:"primaryKey"`
+	Priority      int        `gorm:"not null;default:0"`
+	MemberRepo    Repository `gorm:"foreignKey:MemberRepoID"`
 }
 
 type RepositoryStore interface {
