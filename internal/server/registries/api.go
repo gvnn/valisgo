@@ -81,6 +81,7 @@ func (a *API) databaseValidationMiddleware(next http.Handler) http.Handler {
 
 func (a *API) dispatchToProtocol(w http.ResponseWriter, req *http.Request) {
 	reg := domain.RegistryFromContext(req.Context())
+	repo := domain.RepositoryFromContext(req.Context())
 
 	protoRouter, ok := a.protocolHandlers[reg.Format]
 	if !ok {
@@ -89,8 +90,32 @@ func (a *API) dispatchToProtocol(w http.ResponseWriter, req *http.Request) {
 	}
 
 	remainingPath := chi.URLParam(req, "*")
+
+	if repo.Type == domain.RepositoryTypeVirtual {
+		a.dispatchVirtual(w, req, repo, protoRouter, remainingPath)
+		return
+	}
+
 	req.URL.Path = "/" + remainingPath
 
 	// Handoff to PyPI / Go / NPM
 	protoRouter.ServeHTTP(w, req)
+}
+
+func (a *API) dispatchVirtual(w http.ResponseWriter, req *http.Request, repo *domain.Repository, protoRouter chi.Router, remainingPath string) {
+	for _, member := range repo.VirtualMembers {
+		req.URL.Path = "/" + remainingPath
+
+		ctx := context.WithValue(req.Context(), domain.RepoCtxKey, &member.MemberRepo)
+		reqWithCtx := req.WithContext(ctx)
+
+		fw := &fallbackResponseWriter{ResponseWriter: w}
+		protoRouter.ServeHTTP(fw, reqWithCtx)
+
+		if fw.status != http.StatusNotFound {
+			return
+		}
+	}
+
+	http.Error(w, "not found in any virtual member", http.StatusNotFound)
 }

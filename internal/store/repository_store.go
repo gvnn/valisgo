@@ -18,7 +18,12 @@ func NewRepositoryStore(db *gorm.DB) domain.RepositoryStore {
 
 func (s *repositoryStore) All() ([]*domain.Repository, error) {
 	var repositories []*domain.Repository
-	err := s.db.Preload("Registry").Find(&repositories).Error
+	err := s.db.Preload("Registry").
+		Preload("VirtualMembers", func(db *gorm.DB) *gorm.DB {
+			return db.Order("priority desc")
+		}).
+		Preload("VirtualMembers.MemberRepo").
+		Find(&repositories).Error
 	return repositories, err
 }
 
@@ -26,6 +31,10 @@ func (s *repositoryStore) GetByNameAndRegistryID(name string, registryID uint) (
 	var repo domain.Repository
 
 	err := s.db.Preload("Registry").
+		Preload("VirtualMembers", func(db *gorm.DB) *gorm.DB {
+			return db.Order("priority desc")
+		}).
+		Preload("VirtualMembers.MemberRepo").
 		Where("name = ? AND registry_id = ?", name, registryID).
 		First(&repo).Error
 
