@@ -45,6 +45,42 @@ func main() {
 	}
 	log.Printf("Repository 'default' for PyPI (ID: %d) seeded.", defaultRepo.ID)
 
+	// Create PyPI proxy repository
+	var proxyRepo domain.Repository
+	if err := db.FirstOrCreate(&proxyRepo, domain.Repository{
+		Name:        "pypi-proxy",
+		RegistryID:  pypiReg.ID,
+		Type:        domain.RepositoryTypeProxy,
+		UpstreamURL: "https://pypi.org",
+	}).Error; err != nil {
+		log.Fatalf("failed to seed pypi proxy repository: %v", err)
+	}
+	log.Printf("Repository 'pypi-proxy' for PyPI (ID: %d) seeded.", proxyRepo.ID)
+
+	// Create PyPI virtual repository
+	var virtualRepo domain.Repository
+	if err := db.FirstOrCreate(&virtualRepo, domain.Repository{
+		Name:       "pypi-virtual",
+		RegistryID: pypiReg.ID,
+		Type:       domain.RepositoryTypeVirtual,
+	}).Error; err != nil {
+		log.Fatalf("failed to seed pypi virtual repository: %v", err)
+	}
+	log.Printf("Repository 'pypi-virtual' for PyPI (ID: %d) seeded.", virtualRepo.ID)
+
+	// Add members to virtual repository
+	members := []domain.VirtualRepoMember{
+		{VirtualRepoID: virtualRepo.ID, MemberRepoID: defaultRepo.ID, Priority: 1}, // Local repo first
+		{VirtualRepoID: virtualRepo.ID, MemberRepoID: proxyRepo.ID, Priority: 2},   // Proxy repo second
+	}
+
+	for _, m := range members {
+		if err := db.FirstOrCreate(&domain.VirtualRepoMember{}, m).Error; err != nil {
+			log.Fatalf("failed to seed virtual repo member: %v", err)
+		}
+	}
+	log.Printf("Seeded members for virtual repository 'pypi-virtual'.")
+
 	// Create File registry if it doesn't exist
 	var fileReg domain.Registry
 	if err := db.FirstOrCreate(&fileReg, domain.Registry{Name: "myfile", Format: domain.FormatFile}).Error; err != nil {
