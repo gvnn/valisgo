@@ -54,43 +54,56 @@ func (m *mockStorage) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func TestServeMetadata(t *testing.T) {
+func TestFetchMetadata(t *testing.T) {
 	st := newMockStorage()
 	svc := NewCacheService(st)
 
 	upstreamCalls := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamCalls++
-		w.Write([]byte("upstream-content"))
+		if r.Header.Get("Accept") == "application/json" {
+			w.Write([]byte(`{"test":"upstream-content"}`))
+		} else {
+			w.Write([]byte("upstream-content"))
+		}
 	}))
 	defer ts.Close()
 
 	// First call: cache miss, fetches synchronously
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	w := httptest.NewRecorder()
+	
+	content, err := svc.FetchMetadata(req.Context(), "test-key", ts.URL, map[string]string{"Accept": "application/json"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	svc.ServeMetadata(w, req, "test-key", ts.URL, nil)
-
-	if w.Body.String() != "upstream-content" {
-		t.Fatalf("expected 'upstream-content', got '%s'", w.Body.String())
+	if string(content) != `{"test":"upstream-content"}` {
+		t.Fatalf("expected '{\"test\":\"upstream-content\"}', got '%s'", string(content))
 	}
 	if upstreamCalls != 1 {
 		t.Fatalf("expected 1 upstream call, got %d", upstreamCalls)
 	}
 	
 	// Ensure it was saved in storage
-	if b, ok := st.data["test-key"]; !ok || string(b) != "upstream-content" {
+	if b, ok := st.data["test-key"]; !ok || string(b) != `{"test":"upstream-content"}` {
 		t.Fatalf("not correctly saved in storage: %v", st.data)
 	}
 
-	// Second call: cache hit, serves from cache, revalidates asynchronously
-	w2 := httptest.NewRecorder()
-	svc.ServeMetadata(w2, req, "test-key", ts.URL, func(b []byte) []byte {
-		return append(b, []byte("-rewritten")...)
-	})
+	// Change upstream response to test background revalidation
+	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls++
+		w.Write([]byte(`{"test":"new-upstream-content"}`))
+	}))
+	defer ts2.Close()
 
-	if w2.Body.String() != "upstream-content" {
-		t.Fatalf("expected cached 'upstream-content', got '%s'", w2.Body.String())
+	// Second call: cache hit, serves from cache, revalidates asynchronously
+	content2, err := svc.FetchMetadata(req.Context(), "test-key", ts2.URL, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if string(content2) != `{"test":"upstream-content"}` { // Should still return old cached content
+		t.Fatalf("expected cached '{\"test\":\"upstream-content\"}', got '%s'", string(content2))
 	}
 
 	// Give the goroutine time to run
@@ -100,8 +113,8 @@ func TestServeMetadata(t *testing.T) {
 		t.Fatalf("expected 2 upstream calls (1 sync, 1 async), got %d", upstreamCalls)
 	}
 
-	// The background revalidation should have updated the cache because of rewriteFn
-	if string(st.data["test-key"]) != "upstream-content-rewritten" {
+	// The background revalidation should have updated the cache
+	if string(st.data["test-key"]) != `{"test":"new-upstream-content"}` {
 		t.Fatalf("cache was not updated by revalidation: %s", string(st.data["test-key"]))
 	}
 }

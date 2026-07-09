@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"valisgo/internal/domain"
+	"valisgo/internal/registry"
 	"valisgo/internal/storage"
 
 	"github.com/go-chi/chi/v5"
@@ -46,6 +47,11 @@ func (p *FileProtocol) handleDownload(w http.ResponseWriter, req *http.Request) 
 	filePath := chi.URLParam(req, "*")
 	if filePath == "" {
 		http.Error(w, "bad request: empty path", http.StatusBadRequest)
+		return
+	}
+
+	if repo.Type == domain.RepositoryTypeVirtual {
+		registry.DispatchVirtualDownload(w, req, repo, p.MountRoutes())
 		return
 	}
 
@@ -170,6 +176,11 @@ func (p *FileProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 	filePath := chi.URLParam(req, "*")
 	if filePath == "" {
 		http.Error(w, "bad request: empty path", http.StatusBadRequest)
+		return
+	}
+
+	if repo.Type == domain.RepositoryTypeVirtual {
+		http.Error(w, "cannot upload to virtual repository", http.StatusBadRequest)
 		return
 	}
 

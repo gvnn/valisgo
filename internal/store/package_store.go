@@ -32,3 +32,13 @@ func (s *packageStore) ListByRepository(repositoryID uint) ([]*domain.Package, e
 	err := s.db.Where("repository_id = ?", repositoryID).Find(&pkgs).Error
 	return pkgs, err
 }
+
+func (s *packageStore) ListDistinctByVirtualRepository(virtualRepoID uint) ([]*domain.Package, error) {
+	var pkgs []*domain.Package
+	err := s.db.Select("MIN(packages.name) as name, packages.normalized_name").
+		Joins("JOIN virtual_repo_members vrm ON vrm.member_repo_id = packages.repository_id").
+		Where("vrm.virtual_repo_id = ?", virtualRepoID).
+		Group("packages.normalized_name").
+		Find(&pkgs).Error
+	return pkgs, err
+}

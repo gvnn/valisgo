@@ -8,7 +8,7 @@ type Package struct {
 	gorm.Model
 
 	Name           string `gorm:"size:255;not null"`
-	NormalizedName string `gorm:"size:255;not null;index"`
+	NormalizedName string `gorm:"size:255;not null;uniqueIndex:idx_repository_normalized_name"`
 	RepositoryID   uint   `gorm:"not null;uniqueIndex:idx_repository_normalized_name"`
 	Repository     Repository
 
@@ -19,4 +19,5 @@ type PackageStore interface {
 	GetByNormalizedNameAndRepository(normalizedName string, repositoryID uint) (*Package, error)
 	Create(pkg *Package) error
 	ListByRepository(repositoryID uint) ([]*Package, error)
+	ListDistinctByVirtualRepository(virtualRepoID uint) ([]*Package, error)
 }

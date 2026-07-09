@@ -26,53 +26,50 @@ func NewCacheService(storage storage.Storage) *CacheService {
 	}
 }
 
-// ServeMetadata serves an endpoint using Stale-While-Revalidate caching.
-// It checks storage for cacheKey. If found, serves it. In a goroutine, it fetches upstreamURL,
-// applies rewriteFn, compares hashes, and updates storage if necessary.
-// If not found, it fetches synchronously, caches, and serves.
-func (s *CacheService) ServeMetadata(w http.ResponseWriter, req *http.Request, cacheKey string, upstreamURL string, rewriteFn func([]byte) []byte) {
-	reader, err := s.storage.Get(req.Context(), cacheKey)
+// FetchMetadata gets metadata using Stale-While-Revalidate caching.
+// It checks storage for cacheKey. If found, returns it, and asynchronously fetches upstreamURL,
+// compares hashes, and updates storage if necessary.
+// If not found, it fetches synchronously, caches, and returns.
+func (s *CacheService) FetchMetadata(ctx context.Context, cacheKey string, upstreamURL string, headers map[string]string) ([]byte, error) {
+	reader, err := s.storage.Get(ctx, cacheKey)
 	if err == nil {
 		defer reader.Close()
 		content, err := io.ReadAll(reader)
 		if err == nil {
-			slog.Info("ServeMetadata cache hit", "cacheKey", cacheKey, "component", "proxy")
-			// Serve cached version
-			_, _ = w.Write(content)
-
+			slog.Info("FetchMetadata cache hit", "cacheKey", cacheKey, "component", "proxy")
+			
 			// Asynchronously revalidate
-			go func(ctx context.Context, key, url string) {
-				s.revalidateMetadata(ctx, key, url, content, rewriteFn)
-			}(context.Background(), cacheKey, upstreamURL)
-			return
+			go func(bgCtx context.Context, key, url string, hdrs map[string]string) {
+				s.revalidateMetadata(bgCtx, key, url, content, hdrs)
+			}(context.Background(), cacheKey, upstreamURL, headers)
+			
+			return content, nil
 		}
 	}
 
-	slog.Info("ServeMetadata cache miss", "cacheKey", cacheKey, "upstreamURL", upstreamURL, "component", "proxy")
+	slog.Info("FetchMetadata cache miss", "cacheKey", cacheKey, "upstreamURL", upstreamURL, "component", "proxy")
 
 	// Cache miss or error reading cache, do synchronous fetch
 	v, err, _ := s.sf.Do(cacheKey, func() (interface{}, error) {
-		content, err := s.fetchAndRewrite(req.Context(), upstreamURL, rewriteFn)
+		content, err := s.fetch(ctx, upstreamURL, headers)
 		if err != nil {
 			return nil, err
 		}
 
-		_ = s.storage.Put(req.Context(), cacheKey, bytes.NewReader(content))
+		_ = s.storage.Put(ctx, cacheKey, bytes.NewReader(content))
 		return content, nil
 	})
 
 	if err != nil {
-		slog.Error("ServeMetadata failed to fetch", "upstreamURL", upstreamURL, "error", err, "component", "proxy")
-		http.Error(w, fmt.Sprintf("bad gateway: %v", err), http.StatusBadGateway)
-		return
+		slog.Error("FetchMetadata failed to fetch", "upstreamURL", upstreamURL, "error", err, "component", "proxy")
+		return nil, err
 	}
 
-	content := v.([]byte)
-	_, _ = w.Write(content)
+	return v.([]byte), nil
 }
 
-func (s *CacheService) revalidateMetadata(ctx context.Context, cacheKey, upstreamURL string, oldContent []byte, rewriteFn func([]byte) []byte) {
-	newContent, err := s.fetchAndRewrite(ctx, upstreamURL, rewriteFn)
+func (s *CacheService) revalidateMetadata(ctx context.Context, cacheKey, upstreamURL string, oldContent []byte, headers map[string]string) {
+	newContent, err := s.fetch(ctx, upstreamURL, headers)
 	if err != nil {
 		slog.Error("Failed to revalidate", "cacheKey", cacheKey, "error", err, "component", "proxy")
 		return
@@ -89,10 +86,14 @@ func (s *CacheService) revalidateMetadata(ctx context.Context, cacheKey, upstrea
 	}
 }
 
-func (s *CacheService) fetchAndRewrite(ctx context.Context, upstreamURL string, rewriteFn func([]byte) []byte) ([]byte, error) {
+func (s *CacheService) fetch(ctx context.Context, upstreamURL string, headers map[string]string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, upstreamURL, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 
 	resp, err := s.client.Do(req)
@@ -105,16 +106,7 @@ func (s *CacheService) fetchAndRewrite(ctx context.Context, upstreamURL string, 
 		return nil, fmt.Errorf("upstream returned %s", resp.Status)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if rewriteFn != nil {
-		body = rewriteFn(body)
-	}
-
-	return body, nil
+	return io.ReadAll(resp.Body)
 }
 
 // StreamAndSave downloads the file, writes it to the response, and calls saveFn to save it to DB/Storage.
@@ -142,4 +134,8 @@ func (s *CacheService) StreamAndSave(ctx context.Context, w http.ResponseWriter,
 	tee := io.TeeReader(resp.Body, w)
 
 	return saveFn(tee, resp.ContentLength)
+}
+
+func (s *CacheService) GetSingleflightGroup() *singleflight.Group {
+	return &s.sf
 }

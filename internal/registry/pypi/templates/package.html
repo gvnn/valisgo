@@ -8,7 +8,7 @@
 <body>
   <h1>Links for {{.PackageName}}</h1>
   {{range .Files}} <a
-    href="/registries/{{$.RegistryName}}/repositories/{{$.RepoName}}/packages/{{.Filename}}#sha256={{.Hash}}">{{.Filename}}</a><br />
+    href="{{.URL}}#sha256={{.Hash}}">{{.Filename}}</a><br />
   {{end}}
 </body>
 
