@@ -21,11 +21,17 @@ func acceptsJSON(req *http.Request) bool {
 // extractVersion attempts to parse the package version from a PyPI filename.
 func extractVersion(filename, pkgName string) string {
 	base := filename
+	knownExt := false
 	for _, ext := range []string{".whl", ".tar.gz", ".zip", ".tar.bz2", ".egg"} {
 		if strings.HasSuffix(base, ext) {
 			base = strings.TrimSuffix(base, ext)
+			knownExt = true
 			break
 		}
+	}
+
+	if !knownExt {
+		return "unknown"
 	}
 
 	if strings.HasSuffix(filename, ".whl") {
