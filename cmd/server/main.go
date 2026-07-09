@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -25,6 +26,7 @@ var (
 	dbDriver   = flag.String("db-driver", env.GetOrDefault("DB_DRIVER", "postgres"), "Database driver (e.g., postgres)")
 	dbDsn      = flag.String("db-dsn", env.GetOrDefault("DB_DSN", "postgres://user:pass@localhost:5432/valisgo?sslmode=disable"), "Database connection string")
 	storageURL = flag.String("storage-url", env.GetOrDefault("STORAGE_URL", "file://./data/blobs"), "Storage bucket URL")
+	logLevel   = flag.String("log-level", env.GetOrDefault("LOG_LEVEL", "debug"), "Logging level (debug, info, warn, error)")
 )
 
 func setupDatabase() *gorm.DB {
@@ -53,8 +55,34 @@ func setupStorage() (storage.Storage, func()) {
 	}
 }
 
+func getLogLevelFromEnv() slog.Level {
+	levelStr := os.Getenv("LOG_LEVEL")
+
+	switch strings.ToLower(levelStr) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func setupLogger() {
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: getLogLevelFromEnv(),
+	}))
+
+	slog.SetDefault(logger)
+}
+
 func main() {
 	flag.Parse()
+
+	setupLogger()
 
 	db := setupDatabase()
 	blobStorage, cleanup := setupStorage()

@@ -6,6 +6,7 @@ require (
 	github.com/casbin/casbin/v3 v3.8.1
 	github.com/casbin/gorm-adapter/v3 v3.41.0
 	github.com/go-chi/chi/v5 v5.3.0
+	gocloud.dev v0.46.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.2
 )
@@ -91,7 +92,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	gocloud.dev v0.46.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93 // indirect
 	golang.org/x/net v0.56.0 // indirect

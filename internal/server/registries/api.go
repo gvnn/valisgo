@@ -2,6 +2,7 @@ package registries
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"valisgo/internal/domain"
 	"valisgo/internal/registry"
@@ -31,6 +32,7 @@ func NewAPI(db *gorm.DB, storage storage.Storage) *API {
 	packageStore := store.NewPackageStore(db)
 	packageFileStore := store.NewPackageFileStore(db)
 
+	slog.Info("Registering protocol handlers")
 	api.RegisterProtocolHandler(domain.FormatPyPI, pypi.NewPyPIProtocol(packageStore, packageFileStore, storage))
 	api.RegisterProtocolHandler(domain.FormatFile, file.NewFileProtocol(packageStore, packageFileStore, storage))
 
