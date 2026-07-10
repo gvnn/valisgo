@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 
 	"valisgo/internal/domain"
@@ -122,10 +123,13 @@ func (p *PyPIProtocol) fetchLocalPackageFiles(req *http.Request, reg *domain.Reg
 	}
 	var tFiles []templateFile
 	for _, f := range files {
+		u := url.URL{
+			Path: path.Join("/registries", reg.Name, "repositories", repo.Name, "packages", f.Filename),
+		}
 		tFiles = append(tFiles, templateFile{
 			Filename:   f.Filename,
 			Hash:       f.Hash,
-			URL:        fmt.Sprintf("/registries/%s/repositories/%s/packages/%s", reg.Name, repo.Name, f.Filename),
+			URL:        u.String(),
 			Size:       f.Size,
 			UploadTime: f.CreatedAt.UTC().Format("2006-01-02T15:04:05.000000Z"),
 			Version:    f.Version,
@@ -346,17 +350,20 @@ func (p *PyPIProtocol) proxySimplePackage(req *http.Request, reg *domain.Registr
 
 	var tFiles []templateFile
 	for _, f := range upstreamResp.Files {
-		encodedUpstream := ""
-		if f.URL != "" {
-			encodedUpstream = fmt.Sprintf("?pkg=%s&upstream=%s", url.QueryEscape(pkgName), url.QueryEscape(f.URL))
+		u := url.URL{
+			Path: path.Join("/registries", reg.Name, "repositories", repo.Name, "packages", f.Filename),
 		}
-
-		finalURL := fmt.Sprintf("/registries/%s/repositories/%s/packages/%s%s", reg.Name, repo.Name, f.Filename, encodedUpstream)
+		if f.URL != "" {
+			q := u.Query()
+			q.Set("pkg", pkgName)
+			q.Set("upstream", f.URL)
+			u.RawQuery = q.Encode()
+		}
 
 		tFiles = append(tFiles, templateFile{
 			Filename:   f.Filename,
 			Hash:       f.Hashes.SHA256,
-			URL:        finalURL,
+			URL:        u.String(),
 			Size:       f.Size,
 			UploadTime: f.UploadTime,
 			Version:    extractVersion(f.Filename, pkgName),
