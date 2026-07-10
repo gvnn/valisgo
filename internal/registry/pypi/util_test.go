@@ -162,3 +162,33 @@ func TestExtractVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestDeduplicateFiles(t *testing.T) {
+	files := []templateFile{
+		{Filename: "file1.whl", Version: "1.0"},
+		{Filename: "file2.whl", Version: "1.0"},
+		{Filename: "file1.whl", Version: "1.1"}, // Duplicate filename
+	}
+
+	result := deduplicateFiles(files)
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(result))
+	}
+	if result[0].Filename != "file1.whl" || result[0].Version != "1.0" {
+		t.Errorf("expected first file1.whl to be retained")
+	}
+	if result[1].Filename != "file2.whl" {
+		t.Errorf("expected file2.whl to be retained")
+	}
+}
+
+func TestParseUploadForm_InvalidAction(t *testing.T) {
+	req, _ := http.NewRequest("POST", "/", nil)
+	// We won't actually simulate a full multipart form for simplicity,
+	// just the error handling of ParseMultipartForm
+	_, err := parseUploadForm(req)
+	if err == nil {
+		t.Error("expected error parsing non-multipart form")
+	}
+}

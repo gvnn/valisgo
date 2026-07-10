@@ -56,6 +56,11 @@ func (tw *trackedWriter) Write(p []byte) (int, error) {
 	return tw.ResponseWriter.Write(p)
 }
 
+func (tw *trackedWriter) WriteHeader(statusCode int) {
+	tw.written = true
+	tw.ResponseWriter.WriteHeader(statusCode)
+}
+
 type uploadMetadata struct {
 	Name           string
 	NormalizedName string
