@@ -94,5 +94,58 @@ func main() {
 	}
 	log.Printf("Repository 'myrepo' for File (ID: %d) seeded.", fileRepo.ID)
 
+	// Create NPM registry if it doesn't exist
+	var npmReg domain.Registry
+	if err := db.FirstOrCreate(&npmReg, domain.Registry{Name: "mynpm", Format: domain.FormatNPM}).Error; err != nil {
+		log.Fatalf("failed to seed npm registry: %v", err)
+	}
+	log.Printf("Registry NPM (ID: %d) seeded.", npmReg.ID)
+
+	// Create NPM proxy repository
+	var npmProxyRepo domain.Repository
+	if err := db.FirstOrCreate(&npmProxyRepo, domain.Repository{
+		Name:        "npm-proxy",
+		RegistryID:  npmReg.ID,
+		Type:        domain.RepositoryTypeProxy,
+		UpstreamURL: "https://registry.npmjs.org",
+	}).Error; err != nil {
+		log.Fatalf("failed to seed npm proxy repository: %v", err)
+	}
+	log.Printf("Repository 'npm-proxy' for NPM (ID: %d) seeded.", npmProxyRepo.ID)
+
+	// Create NPM local repository
+	var npmLocalRepo domain.Repository
+	if err := db.FirstOrCreate(&npmLocalRepo, domain.Repository{
+		Name:       "npm-local",
+		RegistryID: npmReg.ID,
+		Type:       domain.RepositoryTypeLocal,
+	}).Error; err != nil {
+		log.Fatalf("failed to seed npm local repository: %v", err)
+	}
+	log.Printf("Repository 'npm-local' for NPM (ID: %d) seeded.", npmLocalRepo.ID)
+
+	// Create NPM virtual repository
+	var npmVirtualRepo domain.Repository
+	if err := db.FirstOrCreate(&npmVirtualRepo, domain.Repository{
+		Name:       "npm-virtual",
+		RegistryID: npmReg.ID,
+		Type:       domain.RepositoryTypeVirtual,
+	}).Error; err != nil {
+		log.Fatalf("failed to seed npm virtual repository: %v", err)
+	}
+	log.Printf("Repository 'npm-virtual' for NPM (ID: %d) seeded.", npmVirtualRepo.ID)
+
+	// Add members to NPM virtual repository
+	npmMembers := []domain.VirtualRepoMember{
+		{VirtualRepoID: npmVirtualRepo.ID, MemberRepoID: npmLocalRepo.ID, Priority: 1},
+		{VirtualRepoID: npmVirtualRepo.ID, MemberRepoID: npmProxyRepo.ID, Priority: 2},
+	}
+	for _, m := range npmMembers {
+		if err := db.FirstOrCreate(&domain.VirtualRepoMember{}, m).Error; err != nil {
+			log.Fatalf("failed to seed virtual repo member: %v", err)
+		}
+	}
+	log.Printf("Seeded members for virtual repository 'npm-virtual'.")
+
 	log.Println("Seeding completed successfully.")
 }

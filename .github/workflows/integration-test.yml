@@ -38,6 +38,11 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Use Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.x"
+
       - name: Download Valisgo Artifact
         uses: actions/download-artifact@v4
         with:
@@ -65,3 +70,6 @@ jobs:
 
       - name: Run File Integration Test
         run: bash tests/integration/file/test.sh
+
+      - name: Run NPM Integration Test
+        run: bash tests/integration/npm/test.sh
