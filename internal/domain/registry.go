@@ -20,6 +20,7 @@ type RegistryFormat string
 const (
 	FormatPyPI RegistryFormat = "pypi"
 	FormatGo   RegistryFormat = "go"
+	FormatNPM  RegistryFormat = "npm"
 	FormatFile RegistryFormat = "file"
 )
 

@@ -47,8 +47,16 @@ jobs:
       - name: Run Postgres Migrations
         run: make migrate-apply
 
-      - name: Test with the Go CLI
-        run: make test
+      - name: Test and generate coverage
+        run: make test-cov
+
+      - name: Report Coverage
+        if: always()
+        run: |
+          echo "### Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
+          go tool cover -func=coverage.out >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
   integration-test:
     needs: build

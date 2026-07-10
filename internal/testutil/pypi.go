@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"valisgo/internal/proxy"
 	"valisgo/internal/registry/pypi"
 
 	"gorm.io/gorm"
@@ -15,6 +16,7 @@ import (
 func NewPyPITestRouter(t *testing.T, db *gorm.DB) http.Handler {
 	t.Helper()
 	packageStore, packageFileStore, st := SetupTestStoresAndStorage(t, db)
-	p := pypi.NewPyPIProtocol(packageStore, packageFileStore, st)
+	cacheService := proxy.NewCacheService(st)
+	p := pypi.NewPyPIProtocol(packageStore, packageFileStore, st, cacheService)
 	return p.MountRoutes()
 }

@@ -1,5 +1,10 @@
 package pypi
 
+import (
+	"io"
+	"net/http"
+)
+
 type SimpleMeta struct {
 	APIVersion string `json:"api-version"`
 }
@@ -30,4 +35,32 @@ type SimplePackageResponse struct {
 	Name     string       `json:"name"`
 	Versions []string     `json:"versions"`
 	Files    []SimpleFile `json:"files"`
+}
+
+type templateFile struct {
+	Filename   string
+	Hash       string
+	URL        string
+	Size       int64
+	UploadTime string
+	Version    string
+}
+
+type trackedWriter struct {
+	http.ResponseWriter
+	written bool
+}
+
+func (tw *trackedWriter) Write(p []byte) (int, error) {
+	tw.written = true
+	return tw.ResponseWriter.Write(p)
+}
+
+type uploadMetadata struct {
+	Name           string
+	NormalizedName string
+	Version        string
+	Filename       string
+	Size           int64
+	File           io.ReadCloser
 }

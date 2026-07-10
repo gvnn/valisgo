@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"valisgo/internal/domain"
+	"valisgo/internal/proxy"
 	"valisgo/internal/registry"
 	"valisgo/internal/registry/file"
 	"valisgo/internal/registry/pypi"
@@ -33,7 +34,7 @@ func NewAPI(db *gorm.DB, storage storage.Storage) *API {
 	packageFileStore := store.NewPackageFileStore(db)
 
 	slog.Info("Registering protocol handlers")
-	api.RegisterProtocolHandler(domain.FormatPyPI, pypi.NewPyPIProtocol(packageStore, packageFileStore, storage))
+	api.RegisterProtocolHandler(domain.FormatPyPI, pypi.NewPyPIProtocol(packageStore, packageFileStore, storage, proxy.NewCacheService(storage)))
 	api.RegisterProtocolHandler(domain.FormatFile, file.NewFileProtocol(packageStore, packageFileStore, storage))
 
 	return api
@@ -83,7 +84,6 @@ func (a *API) databaseValidationMiddleware(next http.Handler) http.Handler {
 
 func (a *API) dispatchToProtocol(w http.ResponseWriter, req *http.Request) {
 	reg := domain.RegistryFromContext(req.Context())
-	repo := domain.RepositoryFromContext(req.Context())
 
 	protoRouter, ok := a.protocolHandlers[reg.Format]
 	if !ok {
@@ -92,32 +92,8 @@ func (a *API) dispatchToProtocol(w http.ResponseWriter, req *http.Request) {
 	}
 
 	remainingPath := chi.URLParam(req, "*")
-
-	if repo.Type == domain.RepositoryTypeVirtual {
-		a.dispatchVirtual(w, req, repo, protoRouter, remainingPath)
-		return
-	}
-
 	req.URL.Path = "/" + remainingPath
 
-	// Handoff to PyPI / Go / NPM
+	// Handoff to PyPI / Go / NPM / File
 	protoRouter.ServeHTTP(w, req)
-}
-
-func (a *API) dispatchVirtual(w http.ResponseWriter, req *http.Request, repo *domain.Repository, protoRouter chi.Router, remainingPath string) {
-	for _, member := range repo.VirtualMembers {
-		req.URL.Path = "/" + remainingPath
-
-		ctx := context.WithValue(req.Context(), domain.RepoCtxKey, &member.MemberRepo)
-		reqWithCtx := req.WithContext(ctx)
-
-		fw := &fallbackResponseWriter{ResponseWriter: w}
-		protoRouter.ServeHTTP(fw, reqWithCtx)
-
-		if fw.status != http.StatusNotFound {
-			return
-		}
-	}
-
-	http.Error(w, "not found in any virtual member", http.StatusNotFound)
 }
