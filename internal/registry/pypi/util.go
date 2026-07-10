@@ -1,6 +1,8 @@
 package pypi
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -54,4 +56,51 @@ func extractVersion(filename, pkgName string) string {
 	}
 
 	return "unknown"
+}
+
+// deduplicateFiles removes duplicate template files based on their Filename.
+// The first occurrence of a filename is kept.
+func deduplicateFiles(files []templateFile) []templateFile {
+	var result []templateFile
+	seen := make(map[string]bool)
+
+	for _, tf := range files {
+		if !seen[tf.Filename] {
+			seen[tf.Filename] = true
+			result = append(result, tf)
+		}
+	}
+
+	return result
+}
+
+func parseUploadForm(req *http.Request) (*uploadMetadata, error) {
+	err := req.ParseMultipartForm(10 << 20) // 10 MB max memory
+	if err != nil {
+		return nil, fmt.Errorf("invalid form: %w", err)
+	}
+
+	if req.FormValue(":action") != "file_upload" {
+		return nil, errors.New("unsupported action")
+	}
+
+	name := req.FormValue("name")
+	version := req.FormValue("version")
+	if name == "" || version == "" {
+		return nil, errors.New("missing name or version")
+	}
+
+	file, header, err := req.FormFile("content")
+	if err != nil {
+		return nil, fmt.Errorf("missing file content: %w", err)
+	}
+
+	return &uploadMetadata{
+		Name:           name,
+		NormalizedName: NormalizeName(name),
+		Version:        version,
+		Filename:       header.Filename,
+		Size:           header.Size,
+		File:           file,
+	}, nil
 }
