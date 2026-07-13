@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"valisgo/internal/domain"
 
 	"gorm.io/gorm"
@@ -26,9 +28,16 @@ func (s *registryStore) GetByName(name string) (*domain.Registry, error) {
 	var registry domain.Registry
 
 	err := s.db.Where("name = ?", name).First(&registry).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return &registry, nil
+}
+
+func (s *registryStore) Create(registry *domain.Registry) error {
+	return s.db.Create(registry).Error
 }
