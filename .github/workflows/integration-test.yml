@@ -74,6 +74,8 @@ jobs:
       - name: Run NPM Integration Test
         run: bash tests/integration/npm/test.sh
 
+      - name: Run Go Integration Test
+        run: bash tests/integration/golang/test.sh
+
       - name: Run management API test
         run: make test-integration
-
