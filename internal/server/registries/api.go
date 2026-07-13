@@ -8,6 +8,7 @@ import (
 	"valisgo/internal/proxy"
 	"valisgo/internal/registry"
 	"valisgo/internal/registry/file"
+	"valisgo/internal/registry/golang"
 	"valisgo/internal/registry/npm"
 	"valisgo/internal/registry/pypi"
 	"valisgo/internal/storage"
@@ -37,6 +38,7 @@ func NewAPI(db *gorm.DB, storage storage.Storage) *API {
 	slog.Info("Registering protocol handlers")
 	api.RegisterProtocolHandler(domain.FormatPyPI, pypi.NewPyPIProtocol(packageStore, packageFileStore, storage, proxy.NewCacheService(storage)))
 	api.RegisterProtocolHandler(domain.FormatNPM, npm.NewNPMProtocol(packageStore, packageFileStore, storage, proxy.NewCacheService(storage)))
+	api.RegisterProtocolHandler(domain.FormatGo, golang.NewGoProtocol(packageStore, packageFileStore, storage, proxy.NewCacheService(storage)))
 	api.RegisterProtocolHandler(domain.FormatFile, file.NewFileProtocol(packageStore, packageFileStore, storage))
 
 	return api

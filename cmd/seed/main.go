@@ -147,5 +147,58 @@ func main() {
 	}
 	log.Printf("Seeded members for virtual repository 'npm-virtual'.")
 
+	// Create Go registry if it doesn't exist
+	var goReg domain.Registry
+	if err := db.FirstOrCreate(&goReg, domain.Registry{Name: "mygo", Format: domain.FormatGo}).Error; err != nil {
+		log.Fatalf("failed to seed go registry: %v", err)
+	}
+	log.Printf("Registry Go (ID: %d) seeded.", goReg.ID)
+
+	// Create Go proxy repository
+	var goProxyRepo domain.Repository
+	if err := db.FirstOrCreate(&goProxyRepo, domain.Repository{
+		Name:        "go-proxy",
+		RegistryID:  goReg.ID,
+		Type:        domain.RepositoryTypeProxy,
+		UpstreamURL: "https://proxy.golang.org",
+	}).Error; err != nil {
+		log.Fatalf("failed to seed go proxy repository: %v", err)
+	}
+	log.Printf("Repository 'go-proxy' for Go (ID: %d) seeded.", goProxyRepo.ID)
+
+	// Create Go local repository
+	var goLocalRepo domain.Repository
+	if err := db.FirstOrCreate(&goLocalRepo, domain.Repository{
+		Name:       "go-local",
+		RegistryID: goReg.ID,
+		Type:       domain.RepositoryTypeLocal,
+	}).Error; err != nil {
+		log.Fatalf("failed to seed go local repository: %v", err)
+	}
+	log.Printf("Repository 'go-local' for Go (ID: %d) seeded.", goLocalRepo.ID)
+
+	// Create Go virtual repository
+	var goVirtualRepo domain.Repository
+	if err := db.FirstOrCreate(&goVirtualRepo, domain.Repository{
+		Name:       "go-virtual",
+		RegistryID: goReg.ID,
+		Type:       domain.RepositoryTypeVirtual,
+	}).Error; err != nil {
+		log.Fatalf("failed to seed go virtual repository: %v", err)
+	}
+	log.Printf("Repository 'go-virtual' for Go (ID: %d) seeded.", goVirtualRepo.ID)
+
+	// Add members to Go virtual repository
+	goMembers := []domain.VirtualRepoMember{
+		{VirtualRepoID: goVirtualRepo.ID, MemberRepoID: goLocalRepo.ID, Priority: 1},
+		{VirtualRepoID: goVirtualRepo.ID, MemberRepoID: goProxyRepo.ID, Priority: 2},
+	}
+	for _, m := range goMembers {
+		if err := db.FirstOrCreate(&domain.VirtualRepoMember{}, m).Error; err != nil {
+			log.Fatalf("failed to seed virtual repo member: %v", err)
+		}
+	}
+	log.Printf("Seeded members for virtual repository 'go-virtual'.")
+
 	log.Println("Seeding completed successfully.")
 }
