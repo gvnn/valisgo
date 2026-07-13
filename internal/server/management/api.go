@@ -27,8 +27,36 @@ func (a *API) MountRoutes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Get("/registries", a.listRegistries)
+	r.Post("/registries", a.createRegistry)
 
 	return r
+}
+
+func (a *API) createRegistry(w http.ResponseWriter, r *http.Request) {
+	var registry domain.Registry
+	if err := json.NewDecoder(r.Body).Decode(&registry); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	existing, err := a.registryStore.GetByName(registry.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if existing != nil {
+		http.Error(w, "registry already exists", http.StatusConflict)
+		return
+	}
+
+	if err := a.registryStore.Create(&registry); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(&registry)
 }
 
 func (a *API) listRegistries(w http.ResponseWriter, r *http.Request) {

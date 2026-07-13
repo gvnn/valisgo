@@ -1,6 +1,8 @@
 # valisgo
 
-🧳 A suitcase full of wonders
+🧳 A suitcase full of wonders.
+
+The goal of this project is to provide a free and open-source alternative to Nexus and Jfrog.
 
 ## Prerequisites
 

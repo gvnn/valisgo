@@ -34,4 +34,5 @@ type Registry struct {
 type RegistryStore interface {
 	All() ([]*Registry, error)
 	GetByName(name string) (*Registry, error)
+	Create(registry *Registry) error
 }
