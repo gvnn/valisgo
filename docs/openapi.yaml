@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: Valisgo API
+  version: 1.0.0
+  description: API for managing Valisgo registries.
+paths:
+  /registries:
+    get:
+      summary: List all registries
+      operationId: listRegistries
+      responses:
+        '200':
+          description: A list of registries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Registry'
+    post:
+      summary: Create a new registry
+      operationId: createRegistry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryInput'
+      responses:
+        '201':
+          description: Registry created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '400':
+          description: Bad request
+        '409':
+          description: Registry already exists
+        '500':
+          description: Internal server error
+components:
+  schemas:
+    RegistryInput:
+      type: object
+      required:
+        - Name
+      properties:
+        Name:
+          type: string
+        Format:
+          type: string
+          enum: [pypi, go, npm, file]
+    Registry:
+      type: object
+      properties:
+        ID:
+          type: integer
+        CreatedAt:
+          type: string
+          format: date-time
+        UpdatedAt:
+          type: string
+          format: date-time
+        DeletedAt:
+          type: string
+          format: date-time
+        Name:
+          type: string
+        Format:
+          type: string
+          enum: [pypi, go, npm, file]
