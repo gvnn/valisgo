@@ -31,7 +31,7 @@ test:
 	TEST_DB_DRIVER="postgres" TEST_DB_DSN=$(PG_URL) go test ./...
 
 test-integration:
-	go test tests/integration/management_test.go
+	go test -tags=integration tests/integration/management_test.go
 
 test-cov:
 	TEST_DB_DRIVER="postgres" TEST_DB_DSN=$(PG_URL) go test -coverprofile=$(COVERAGE_FILE) ./...
