@@ -26,6 +26,10 @@ func NewAPI(db *gorm.DB) *API {
 func (a *API) MountRoutes() chi.Router {
 	r := chi.NewRouter()
 
+	r.Get("/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "docs/openapi.yaml")
+	})
+
 	r.Get("/registries", a.listRegistries)
 	r.Post("/registries", a.createRegistry)
 

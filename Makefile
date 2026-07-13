@@ -1,4 +1,4 @@
-.PHONY: install setup build run dev test test-cov clean migrate-diff migrate-apply db-up db-down
+.PHONY: install setup build run dev test test-integration test-cov clean migrate-diff migrate-apply db-up db-down generate-client
 
 BINARY_NAME := valisgo
 BIN_DIR := bin
@@ -30,6 +30,9 @@ seed:
 test:
 	TEST_DB_DRIVER="postgres" TEST_DB_DSN=$(PG_URL) go test ./...
 
+test-integration:
+	go test -tags=integration tests/integration/management_test.go
+
 test-cov:
 	TEST_DB_DRIVER="postgres" TEST_DB_DSN=$(PG_URL) go test -coverprofile=$(COVERAGE_FILE) ./...
 	go tool cover -func=$(COVERAGE_FILE)
@@ -45,3 +48,8 @@ migrate-apply:
 
 migrate-down:
 	atlas migrate down --env postgres --url $(PG_URL)
+
+generate-client:
+	@echo "Generating OpenAPI client..."
+	mkdir -p tests/integration/client
+	go tool oapi-codegen -generate client,types -package client docs/openapi.yaml > tests/integration/client/client.gen.go

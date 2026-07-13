@@ -73,3 +73,7 @@ jobs:
 
       - name: Run NPM Integration Test
         run: bash tests/integration/npm/test.sh
+
+      - name: Run management API test
+        run: make test-integration
+
