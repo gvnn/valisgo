@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"valisgo/internal/domain"
+	"valisgo/internal/registry"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -27,12 +28,14 @@ func (p *GoProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 	path := chi.URLParam(req, "*")
 
 	modulePath, version, ext, err := ParsePath(path)
+
+	if err == ErrInvalidPath {
+		http.Error(w, "invalid goproxy path for upload", http.StatusBadRequest)
+		return
+	}
+
 	if err != nil || ext == "list" {
-		if err == ErrInvalidPath {
-			http.Error(w, "invalid goproxy path for upload", http.StatusBadRequest)
-		} else {
-			http.Error(w, "unsupported upload type", http.StatusBadRequest)
-		}
+		http.Error(w, "unsupported upload type", http.StatusBadRequest)
 		return
 	}
 
@@ -40,8 +43,8 @@ func (p *GoProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 	slog.Info("Handling Go module file upload", "repository", repo.Name, "module", modulePath, "version", version, "file", filename)
 
 	pkg, err := p.getOrCreatePackage(req.Context(), repo.ID, modulePath)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+
+	if registry.HandleInternalError(w, err) {
 		return
 	}
 
@@ -78,15 +81,4 @@ func (p *GoProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(`{"success": true}`))
-}
-
-type lengthReader struct {
-	r    io.Reader
-	size int64
-}
-
-func (lr *lengthReader) Read(p []byte) (int, error) {
-	n, err := lr.r.Read(p)
-	lr.size += int64(n)
-	return n, err
 }

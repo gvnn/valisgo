@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"valisgo/internal/domain"
-
-	"gorm.io/gorm"
 )
 
 func (p *NPMProtocol) handleMetadata(w http.ResponseWriter, req *http.Request) {
@@ -38,11 +36,15 @@ func (p *NPMProtocol) handleMetadata(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		slog.Error("Failed to fetch package metadata", "error", err, "package", pkgName, "repository", repo.Name)
-		if err.Error() == "not found" {
-			http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
-		} else {
-			http.Error(w, `{"error": "internal error"}`, http.StatusInternalServerError)
-		}
+	}
+
+	if err != nil && err.Error() == "not found" {
+		http.Error(w, `{"error": "not found"}`, http.StatusNotFound)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, `{"error": "internal error"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -118,10 +120,10 @@ func (p *NPMProtocol) proxyMetadata(req *http.Request, reg *domain.Registry, rep
 func (p *NPMProtocol) localMetadata(req *http.Request, reg *domain.Registry, repo *domain.Repository, pkgName string) ([]byte, error) {
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(pkgName, repo.ID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("not found")
-		}
 		return nil, err
+	}
+	if pkg == nil {
+		return nil, errors.New("not found")
 	}
 
 	files, err := p.packageFileStore.ListByPackage(pkg.ID)

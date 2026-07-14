@@ -2,6 +2,7 @@ package golang
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -36,4 +37,11 @@ func ParsePath(path string) (modulePath, version, ext string, err error) {
 	}
 
 	return modulePath, "", "", ErrUnsupportedAction
+}
+
+// goBlobKey builds a storage key scoped to the module so that different
+// modules sharing a version (e.g. two modules both at v0.3.0) don't collide
+// on the same "<version>.<ext>" filename.
+func goBlobKey(repoID uint, modulePath, filename string) string {
+	return fmt.Sprintf("%d/%s/%s", repoID, modulePath, filename)
 }

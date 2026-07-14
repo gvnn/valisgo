@@ -3,7 +3,6 @@ package golang
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,8 +11,6 @@ import (
 
 	"valisgo/internal/domain"
 	"valisgo/internal/registry"
-
-	"gorm.io/gorm"
 )
 
 func (p *GoProtocol) handleDownload(w http.ResponseWriter, req *http.Request, modulePath, version, ext string) {
@@ -27,38 +24,33 @@ func (p *GoProtocol) handleDownload(w http.ResponseWriter, req *http.Request, mo
 		return
 	}
 
-	// Resolve the package first so file lookups are scoped to this module.
-	// Go filenames are just "<version>.<ext>" and collide across modules
-	// that share a version, so a repository-wide lookup is not safe here.
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(modulePath, repo.ID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if repo.Type == domain.RepositoryTypeProxy {
-				p.proxyDownload(w, req, repo, modulePath, version, filename)
-				return
-			}
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+	if pkg == nil {
+		p.handleNotFound(w, req, repo, modulePath, version, filename)
 		return
 	}
 
 	pkgFile, err := p.packageFileStore.GetByFilenameAndPackage(filename, pkg.ID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if repo.Type == domain.RepositoryTypeProxy {
-				p.proxyDownload(w, req, repo, modulePath, version, filename)
-				return
-			}
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+	if pkgFile == nil {
+		p.handleNotFound(w, req, repo, modulePath, version, filename)
 		return
 	}
 
 	p.serveFileFromStorage(w, req, pkgFile)
+}
+
+func (p *GoProtocol) handleNotFound(w http.ResponseWriter, req *http.Request, repo *domain.Repository, modulePath, version, filename string) {
+	if repo.Type == domain.RepositoryTypeProxy {
+		p.proxyDownload(w, req, repo, modulePath, version, filename)
+		return
+	}
+	http.Error(w, "file not found", http.StatusNotFound)
 }
 
 func (p *GoProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, repo *domain.Repository, modulePath, version, filename string) {
@@ -66,16 +58,15 @@ func (p *GoProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, rep
 	blobKey := goBlobKey(repo.ID, modulePath, filename)
 
 	pkg, err := p.getOrCreatePackage(req.Context(), repo.ID, modulePath)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if registry.HandleInternalError(w, err) {
 		return
 	}
 
 	tw := &trackedWriter{ResponseWriter: w}
 
 	_, err, _ = p.downloadSF.Do(blobKey, func() (interface{}, error) {
-		_, err := p.packageFileStore.GetByFilenameAndPackage(filename, pkg.ID)
-		if err == nil {
+		pkgFile, err := p.packageFileStore.GetByFilenameAndPackage(filename, pkg.ID)
+		if err == nil && pkgFile != nil {
 			return nil, nil // Already downloaded by another request
 		}
 
@@ -91,21 +82,15 @@ func (p *GoProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, rep
 		return
 	}
 
-	if !tw.written {
-		pkgFile, err := p.packageFileStore.GetByFilenameAndPackage(filename, pkg.ID)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		p.serveFileFromStorage(w, req, pkgFile)
+	if tw.written {
+		return
 	}
-}
 
-// goBlobKey builds a storage key scoped to the module so that different
-// modules sharing a version (e.g. two modules both at v0.3.0) don't collide
-// on the same "<version>.<ext>" filename.
-func goBlobKey(repoID uint, modulePath, filename string) string {
-	return fmt.Sprintf("%d/%s/%s", repoID, modulePath, filename)
+	pkgFile, err := p.packageFileStore.GetByFilenameAndPackage(filename, pkg.ID)
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+	p.serveFileFromStorage(w, req, pkgFile)
 }
 
 func (p *GoProtocol) saveProxiedFile(ctx context.Context, r io.Reader, size int64, repoID uint, pkg *domain.Package, filename, version, blobKey string) error {
@@ -145,18 +130,17 @@ func (p *GoProtocol) serveFileFromStorage(w http.ResponseWriter, req *http.Reque
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
-	
+
 	io.Copy(w, reader)
 }
 
 func (p *GoProtocol) getOrCreatePackage(ctx context.Context, repoID uint, modulePath string) (*domain.Package, error) {
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(modulePath, repoID)
-	if err == nil {
-		return pkg, nil
-	}
-
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return nil, err
+	}
+	if pkg != nil {
+		return pkg, nil
 	}
 
 	newPkg := &domain.Package{
@@ -165,10 +149,15 @@ func (p *GoProtocol) getOrCreatePackage(ctx context.Context, repoID uint, module
 		RepositoryID:   repoID,
 	}
 
-	if err := p.packageStore.Create(newPkg); err != nil {
-		// Try fetching again in case of race condition
-		return p.packageStore.GetByNormalizedNameAndRepository(modulePath, repoID)
+	err = p.packageStore.Create(newPkg)
+	if err == nil {
+		return newPkg, nil
 	}
 
-	return newPkg, nil
+	existing, errGet := p.packageStore.GetByNormalizedNameAndRepository(modulePath, repoID)
+	if errGet == nil && existing != nil {
+		return existing, nil
+	}
+
+	return nil, err
 }

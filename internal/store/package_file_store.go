@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"valisgo/internal/domain"
 
 	"gorm.io/gorm"
@@ -21,6 +23,9 @@ func (s *packageFileStore) Create(file *domain.PackageFile) error {
 func (s *packageFileStore) GetByFilenameAndPackage(filename string, packageID uint) (*domain.PackageFile, error) {
 	var file domain.PackageFile
 	result := s.db.Where("filename = ? AND package_id = ?", filename, packageID).First(&file)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -30,6 +35,9 @@ func (s *packageFileStore) GetByFilenameAndPackage(filename string, packageID ui
 func (s *packageFileStore) GetByFilenameAndRepository(filename string, repositoryID uint) (*domain.PackageFile, error) {
 	var file domain.PackageFile
 	result := s.db.Joins("Package").Where("\"Package\".repository_id = ? AND filename = ?", repositoryID, filename).First(&file)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if result.Error != nil {
 		return nil, result.Error
 	}

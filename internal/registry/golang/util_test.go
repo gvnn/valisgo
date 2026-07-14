@@ -89,3 +89,36 @@ func TestParsePath(t *testing.T) {
 		})
 	}
 }
+
+func TestGoBlobKey(t *testing.T) {
+	tests := []struct {
+		name       string
+		repoID     uint
+		modulePath string
+		filename   string
+		want       string
+	}{
+		{
+			name:       "basic info file",
+			repoID:     1,
+			modulePath: "github.com/foo/bar",
+			filename:   "v1.0.0.info",
+			want:       "1/github.com/foo/bar/v1.0.0.info",
+		},
+		{
+			name:       "zip file with v2 module",
+			repoID:     2,
+			modulePath: "github.com/foo/bar/v2",
+			filename:   "v2.1.0.zip",
+			want:       "2/github.com/foo/bar/v2/v2.1.0.zip",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := goBlobKey(tt.repoID, tt.modulePath, tt.filename); got != tt.want {
+				t.Errorf("goBlobKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

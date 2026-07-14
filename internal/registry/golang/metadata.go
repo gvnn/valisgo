@@ -7,17 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"valisgo/internal/domain"
-
-	"gorm.io/gorm"
 )
-
-type VersionInfo struct {
-	Version string    `json:"Version"`
-	Time    time.Time `json:"Time"`
-}
 
 func (p *GoProtocol) handleListVersions(w http.ResponseWriter, req *http.Request, modulePath string) {
 	repo := domain.RepositoryFromContext(req.Context())
@@ -39,12 +31,12 @@ func (p *GoProtocol) handleListVersions(w http.ResponseWriter, req *http.Request
 		err = errors.New("unsupported repository type")
 	}
 
+	if err != nil && err.Error() == "not found" {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "not found" {
-			http.Error(w, "not found", http.StatusNotFound)
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -69,6 +61,9 @@ func (p *GoProtocol) localListVersions(req *http.Request, repo *domain.Repositor
 	if err != nil {
 		return nil, err
 	}
+	if pkg == nil {
+		return nil, errors.New("not found")
+	}
 
 	files, err := p.packageFileStore.ListByPackage(pkg.ID)
 	if err != nil {
@@ -88,6 +83,16 @@ func (p *GoProtocol) localListVersions(req *http.Request, repo *domain.Repositor
 	return []byte(strings.Join(versions, "\n")), nil
 }
 
+func parseVersionsToMap(content []byte, versionsMap map[string]bool) {
+	for _, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		versionsMap[line] = true
+	}
+}
+
 func (p *GoProtocol) virtualListVersions(req *http.Request, reg *domain.Registry, repo *domain.Repository, modulePath string) ([]byte, error) {
 	versionsMap := make(map[string]bool)
 
@@ -101,15 +106,11 @@ func (p *GoProtocol) virtualListVersions(req *http.Request, reg *domain.Registry
 			content, err = p.localListVersions(req, &member.MemberRepo, modulePath)
 		}
 
-		if err == nil {
-			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line != "" {
-					versionsMap[line] = true
-				}
-			}
+		if err != nil {
+			continue
 		}
+
+		parseVersionsToMap(content, versionsMap)
 	}
 
 	var versions []string
@@ -126,7 +127,7 @@ func (p *GoProtocol) virtualListVersions(req *http.Request, reg *domain.Registry
 
 func (p *GoProtocol) handleVersionInfo(w http.ResponseWriter, req *http.Request, modulePath, version string) {
 	repo := domain.RepositoryFromContext(req.Context())
-	
+
 	var content []byte
 	var err error
 
@@ -141,12 +142,12 @@ func (p *GoProtocol) handleVersionInfo(w http.ResponseWriter, req *http.Request,
 		err = errors.New("unsupported repository type")
 	}
 
+	if err != nil && err.Error() == "not found" {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "not found" {
-			http.Error(w, "not found", http.StatusNotFound)
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -170,6 +171,9 @@ func (p *GoProtocol) localVersionInfo(req *http.Request, repo *domain.Repository
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(modulePath, repo.ID)
 	if err != nil {
 		return nil, err
+	}
+	if pkg == nil {
+		return nil, errors.New("not found")
 	}
 
 	files, err := p.packageFileStore.ListByPackage(pkg.ID)

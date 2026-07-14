@@ -8,16 +8,7 @@ import (
 	"valisgo/internal/storage"
 
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/sync/singleflight"
 )
-
-type GoProtocol struct {
-	packageStore     domain.PackageStore
-	packageFileStore domain.PackageFileStore
-	storage          storage.Storage
-	cacheService     *proxy.CacheService
-	downloadSF       singleflight.Group
-}
 
 func NewGoProtocol(packageStore domain.PackageStore, packageFileStore domain.PackageFileStore, storage storage.Storage, cacheService *proxy.CacheService) *GoProtocol {
 	return &GoProtocol{
@@ -40,7 +31,7 @@ func (p *GoProtocol) MountRoutes() chi.Router {
 
 func (p *GoProtocol) handleCatchAll(w http.ResponseWriter, r *http.Request) {
 	path := chi.URLParam(r, "*")
-	
+
 	modulePath, version, ext, err := ParsePath(path)
 	if err != nil {
 		if err == ErrInvalidPath {
@@ -59,19 +50,4 @@ func (p *GoProtocol) handleCatchAll(w http.ResponseWriter, r *http.Request) {
 	case ".mod", ".zip":
 		p.handleDownload(w, r, modulePath, version, ext)
 	}
-}
-
-type trackedWriter struct {
-	http.ResponseWriter
-	written bool
-}
-
-func (tw *trackedWriter) Write(b []byte) (int, error) {
-	tw.written = true
-	return tw.ResponseWriter.Write(b)
-}
-
-func (tw *trackedWriter) WriteHeader(statusCode int) {
-	tw.written = true
-	tw.ResponseWriter.WriteHeader(statusCode)
 }

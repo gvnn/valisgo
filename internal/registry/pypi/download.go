@@ -3,7 +3,6 @@ package pypi
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +12,6 @@ import (
 	"valisgo/internal/registry"
 
 	"github.com/go-chi/chi/v5"
-	"gorm.io/gorm"
 )
 
 func (p *PyPIProtocol) handleDownload(w http.ResponseWriter, req *http.Request) {
@@ -29,22 +27,23 @@ func (p *PyPIProtocol) handleDownload(w http.ResponseWriter, req *http.Request) 
 
 	pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if repo.Type == domain.RepositoryTypeProxy {
-				slog.Info("File not in local DB, delegating to proxyDownload", "filename", filename)
-				p.proxyDownload(w, req, repo, filename)
-				return
-			}
-			slog.Warn("File not found in local repository", "filename", filename)
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
 		slog.Error("Database error checking for file", "error", err, "filename", filename)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	if pkgFile != nil {
+		p.serveFileFromStorage(w, req, pkgFile)
+		return
+	}
 
-	p.serveFileFromStorage(w, req, pkgFile)
+	if repo.Type == domain.RepositoryTypeProxy {
+		slog.Info("File not in local DB, delegating to proxyDownload", "filename", filename)
+		p.proxyDownload(w, req, repo, filename)
+		return
+	}
+
+	slog.Warn("File not found in local repository", "filename", filename)
+	http.Error(w, "file not found", http.StatusNotFound)
 }
 
 func (p *PyPIProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, repo *domain.Repository, filename string) {
@@ -73,8 +72,8 @@ func (p *PyPIProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, r
 
 	_, err, _ = p.downloadSF.Do(blobKey, func() (interface{}, error) {
 		// Verify again inside SF
-		_, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
-		if err == nil {
+		pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
+		if err == nil && pkgFile != nil {
 			slog.Info("File downloaded concurrently by another request, skipping stream", "filename", filename)
 			return nil, nil // Already downloaded
 		}
@@ -91,17 +90,19 @@ func (p *PyPIProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, r
 		return
 	}
 
-	if !tw.written {
-		// We were a waiter, or it was already in DB. Serve from storage.
-		slog.Info("Serving proxied file from storage after wait", "filename", filename)
-		pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
-		if err != nil {
-			slog.Error("Failed to retrieve file from DB after proxy download", "error", err)
-			http.Error(w, "internal error retrieving downloaded file", http.StatusInternalServerError)
-			return
-		}
-		p.serveFileFromStorage(w, req, pkgFile)
+	if tw.written {
+		return
 	}
+
+	// We were a waiter, or it was already in DB. Serve from storage.
+	slog.Info("Serving proxied file from storage after wait", "filename", filename)
+	pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
+	if err != nil {
+		slog.Error("Failed to retrieve file from DB after proxy download", "error", err)
+		http.Error(w, "internal error retrieving downloaded file", http.StatusInternalServerError)
+		return
+	}
+	p.serveFileFromStorage(w, req, pkgFile)
 }
 
 func (p *PyPIProtocol) saveProxiedFile(ctx context.Context, r io.Reader, size int64, repoID uint, pkg *domain.Package, filename, blobKey, pkgName string) error {
