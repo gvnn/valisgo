@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
 
 // Defines values for RegistryFormat.
@@ -63,6 +65,48 @@ func (e RegistryInputFormat) Valid() bool {
 	}
 }
 
+// Defines values for RepositoryType.
+const (
+	RepositoryTypeLocal   RepositoryType = "local"
+	RepositoryTypeProxy   RepositoryType = "proxy"
+	RepositoryTypeVirtual RepositoryType = "virtual"
+)
+
+// Valid indicates whether the value is a known member of the RepositoryType enum.
+func (e RepositoryType) Valid() bool {
+	switch e {
+	case RepositoryTypeLocal:
+		return true
+	case RepositoryTypeProxy:
+		return true
+	case RepositoryTypeVirtual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RepositoryInputType.
+const (
+	RepositoryInputTypeLocal   RepositoryInputType = "local"
+	RepositoryInputTypeProxy   RepositoryInputType = "proxy"
+	RepositoryInputTypeVirtual RepositoryInputType = "virtual"
+)
+
+// Valid indicates whether the value is a known member of the RepositoryInputType enum.
+func (e RepositoryInputType) Valid() bool {
+	switch e {
+	case RepositoryInputTypeLocal:
+		return true
+	case RepositoryInputTypeProxy:
+		return true
+	case RepositoryInputTypeVirtual:
+		return true
+	default:
+		return false
+	}
+}
+
 // Registry defines model for Registry.
 type Registry struct {
 	CreatedAt *time.Time      `json:"CreatedAt,omitempty"`
@@ -84,8 +128,42 @@ type RegistryInput struct {
 // RegistryInputFormat defines model for RegistryInput.Format.
 type RegistryInputFormat string
 
+// Repository defines model for Repository.
+type Repository struct {
+	CreatedAt   *time.Time      `json:"CreatedAt,omitempty"`
+	ID          *int            `json:"ID,omitempty"`
+	Name        *string         `json:"Name,omitempty"`
+	RegistryID  *int            `json:"RegistryID,omitempty"`
+	Type        *RepositoryType `json:"Type,omitempty"`
+	UpdatedAt   *time.Time      `json:"UpdatedAt,omitempty"`
+	UpstreamURL *string         `json:"UpstreamURL,omitempty"`
+}
+
+// RepositoryType defines model for Repository.Type.
+type RepositoryType string
+
+// RepositoryInput defines model for RepositoryInput.
+type RepositoryInput struct {
+	Name         string               `json:"Name"`
+	RegistryName string               `json:"RegistryName"`
+	Type         *RepositoryInputType `json:"Type,omitempty"`
+	UpstreamURL  *string              `json:"UpstreamURL,omitempty"`
+}
+
+// RepositoryInputType defines model for RepositoryInput.Type.
+type RepositoryInputType string
+
+// ListRepositoriesParams defines parameters for ListRepositories.
+type ListRepositoriesParams struct {
+	// Registry Filter repositories by registry name
+	Registry *string `form:"registry,omitempty" json:"registry,omitempty"`
+}
+
 // CreateRegistryJSONRequestBody defines body for CreateRegistry for application/json ContentType.
 type CreateRegistryJSONRequestBody = RegistryInput
+
+// CreateRepositoryJSONRequestBody defines body for CreateRepository for application/json ContentType.
+type CreateRepositoryJSONRequestBody = RepositoryInput
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -167,6 +245,14 @@ type ClientInterface interface {
 	CreateRegistryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateRegistry(ctx context.Context, body CreateRegistryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListRepositories request
+	ListRepositories(ctx context.Context, params *ListRepositoriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateRepositoryWithBody request with any body
+	CreateRepositoryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateRepository(ctx context.Context, body CreateRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListRegistries(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -195,6 +281,42 @@ func (c *Client) CreateRegistryWithBody(ctx context.Context, contentType string,
 
 func (c *Client) CreateRegistry(ctx context.Context, body CreateRegistryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateRegistryRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListRepositories(ctx context.Context, params *ListRepositoriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRepositoriesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateRepositoryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateRepositoryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateRepository(ctx context.Context, body CreateRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateRepositoryRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -272,6 +394,100 @@ func NewCreateRegistryRequestWithBody(server string, contentType string, body io
 	return req, nil
 }
 
+// NewListRepositoriesRequest generates requests for ListRepositories
+func NewListRepositoriesRequest(server string, params *ListRepositoriesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/repositories")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Registry != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "registry", *params.Registry, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateRepositoryRequest calls the generic CreateRepository builder with application/json body
+func NewCreateRepositoryRequest(server string, body CreateRepositoryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateRepositoryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateRepositoryRequestWithBody generates requests for CreateRepository with any type of body
+func NewCreateRepositoryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/repositories")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -322,6 +538,14 @@ type ClientWithResponsesInterface interface {
 	CreateRegistryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRegistryResponse, error)
 
 	CreateRegistryWithResponse(ctx context.Context, body CreateRegistryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRegistryResponse, error)
+
+	// ListRepositoriesWithResponse request
+	ListRepositoriesWithResponse(ctx context.Context, params *ListRepositoriesParams, reqEditors ...RequestEditorFn) (*ListRepositoriesResponse, error)
+
+	// CreateRepositoryWithBodyWithResponse request with any body
+	CreateRepositoryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRepositoryResponse, error)
+
+	CreateRepositoryWithResponse(ctx context.Context, body CreateRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRepositoryResponse, error)
 }
 
 type ListRegistriesResponse struct {
@@ -384,6 +608,66 @@ func (r CreateRegistryResponse) ContentType() string {
 	return ""
 }
 
+type ListRepositoriesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Repository
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRepositoriesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRepositoriesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListRepositoriesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateRepositoryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON201      *Repository
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateRepositoryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateRepositoryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateRepositoryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ListRegistriesWithResponse request returning *ListRegistriesResponse
 func (c *ClientWithResponses) ListRegistriesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListRegistriesResponse, error) {
 	rsp, err := c.ListRegistries(ctx, reqEditors...)
@@ -408,6 +692,32 @@ func (c *ClientWithResponses) CreateRegistryWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParseCreateRegistryResponse(rsp)
+}
+
+// ListRepositoriesWithResponse request returning *ListRepositoriesResponse
+func (c *ClientWithResponses) ListRepositoriesWithResponse(ctx context.Context, params *ListRepositoriesParams, reqEditors ...RequestEditorFn) (*ListRepositoriesResponse, error) {
+	rsp, err := c.ListRepositories(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRepositoriesResponse(rsp)
+}
+
+// CreateRepositoryWithBodyWithResponse request with arbitrary body returning *CreateRepositoryResponse
+func (c *ClientWithResponses) CreateRepositoryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRepositoryResponse, error) {
+	rsp, err := c.CreateRepositoryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateRepositoryResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateRepositoryWithResponse(ctx context.Context, body CreateRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRepositoryResponse, error) {
+	rsp, err := c.CreateRepository(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateRepositoryResponse(rsp)
 }
 
 // ParseListRegistriesResponse parses an HTTP response from a ListRegistriesWithResponse call
@@ -452,6 +762,58 @@ func ParseCreateRegistryResponse(rsp *http.Response) (*CreateRegistryResponse, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest Registry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListRepositoriesResponse parses an HTTP response from a ListRepositoriesWithResponse call
+func ParseListRepositoriesResponse(rsp *http.Response) (*ListRepositoriesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRepositoriesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Repository
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateRepositoryResponse parses an HTTP response from a CreateRepositoryWithResponse call
+func ParseCreateRepositoryResponse(rsp *http.Response) (*CreateRepositoryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateRepositoryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Repository
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -39,6 +39,50 @@ paths:
           description: Registry already exists
         '500':
           description: Internal server error
+  /repositories:
+    get:
+      summary: List all repositories
+      operationId: listRepositories
+      parameters:
+        - in: query
+          name: registry
+          schema:
+            type: string
+          required: false
+          description: Filter repositories by registry name
+      responses:
+        '200':
+          description: A list of repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Repository'
+    post:
+      summary: Create a new repository
+      operationId: createRepository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepositoryInput'
+      responses:
+        '201':
+          description: Repository created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          description: Bad request
+        '404':
+          description: Registry not found
+        '409':
+          description: Repository already exists
+        '500':
+          description: Internal server error
 components:
   schemas:
     RegistryInput:
@@ -67,3 +111,38 @@ components:
         Format:
           type: string
           enum: [pypi, go, npm, file]
+    RepositoryInput:
+      type: object
+      required:
+        - Name
+        - RegistryName
+      properties:
+        Name:
+          type: string
+        RegistryName:
+          type: string
+        Type:
+          type: string
+          enum: [local, proxy, virtual]
+        UpstreamURL:
+          type: string
+    Repository:
+      type: object
+      properties:
+        ID:
+          type: integer
+        CreatedAt:
+          type: string
+          format: date-time
+        UpdatedAt:
+          type: string
+          format: date-time
+        Name:
+          type: string
+        RegistryID:
+          type: integer
+        Type:
+          type: string
+          enum: [local, proxy, virtual]
+        UpstreamURL:
+          type: string
