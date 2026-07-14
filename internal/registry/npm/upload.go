@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,28 +13,35 @@ import (
 
 
 	"valisgo/internal/domain"
-
-	"gorm.io/gorm"
+	"valisgo/internal/registry"
 )
 
 func (p *NPMProtocol) getOrCreatePackage(ctx context.Context, repoID uint, name, normalizedName string) (*domain.Package, error) {
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(normalizedName, repoID)
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-		pkg = &domain.Package{
-			Name:           name,
-			NormalizedName: normalizedName,
-			RepositoryID:   repoID,
-		}
-		if err := p.packageStore.Create(pkg); err != nil {
-			if existingPkg, errGet := p.packageStore.GetByNormalizedNameAndRepository(normalizedName, repoID); errGet == nil {
-				return existingPkg, nil
-			}
-			return nil, err
-		}
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
-	return pkg, nil
+	if pkg != nil {
+		return pkg, nil
+	}
+
+	newPkg := &domain.Package{
+		Name:           name,
+		NormalizedName: normalizedName,
+		RepositoryID:   repoID,
+	}
+
+	err = p.packageStore.Create(newPkg)
+	if err == nil {
+		return newPkg, nil
+	}
+
+	existingPkg, errGet := p.packageStore.GetByNormalizedNameAndRepository(normalizedName, repoID)
+	if errGet == nil && existingPkg != nil {
+		return existingPkg, nil
+	}
+
+	return nil, err
 }
 
 func (p *NPMProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
@@ -58,8 +64,7 @@ func (p *NPMProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 	normalized := pkgName // For NPM we can just use the name as normalized
 
 	pkg, err := p.getOrCreatePackage(req.Context(), repo.ID, pkgName, normalized)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if registry.HandleInternalError(w, err) {
 		return
 	}
 

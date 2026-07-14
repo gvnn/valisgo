@@ -3,15 +3,13 @@ package pypi
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 
 	"valisgo/internal/domain"
-
-	"gorm.io/gorm"
+	"valisgo/internal/registry"
 )
 
 
@@ -20,23 +18,30 @@ import (
 
 func (p *PyPIProtocol) getOrCreatePackage(ctx context.Context, repoID uint, name, normalizedName string) (*domain.Package, error) {
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(normalizedName, repoID)
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-		pkg = &domain.Package{
-			Name:           name,
-			NormalizedName: normalizedName,
-			RepositoryID:   repoID,
-		}
-		if err := p.packageStore.Create(pkg); err != nil {
-			// If it failed due to a unique constraint violation from a concurrent request, try to fetch it again.
-			if existingPkg, errGet := p.packageStore.GetByNormalizedNameAndRepository(normalizedName, repoID); errGet == nil {
-				return existingPkg, nil
-			}
-			return nil, fmt.Errorf("failed to create package: %w", err)
-		}
-	} else if err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("internal error: %w", err)
 	}
-	return pkg, nil
+	if pkg != nil {
+		return pkg, nil
+	}
+
+	newPkg := &domain.Package{
+		Name:           name,
+		NormalizedName: normalizedName,
+		RepositoryID:   repoID,
+	}
+
+	err = p.packageStore.Create(newPkg)
+	if err == nil {
+		return newPkg, nil
+	}
+
+	existingPkg, errGet := p.packageStore.GetByNormalizedNameAndRepository(normalizedName, repoID)
+	if errGet == nil && existingPkg != nil {
+		return existingPkg, nil
+	}
+
+	return nil, fmt.Errorf("failed to create package: %w", err)
 }
 
 func (p *PyPIProtocol) storeFileAndMetadata(ctx context.Context, repoID uint, pkg *domain.Package, meta *uploadMetadata) error {
@@ -95,8 +100,11 @@ func (p *PyPIProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = p.packageFileStore.GetByFilenameAndPackage(meta.Filename, pkg.ID)
-	if err == nil {
+	pkgFile, err := p.packageFileStore.GetByFilenameAndPackage(meta.Filename, pkg.ID)
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+	if pkgFile != nil {
 		slog.Warn("File already exists", "filename", meta.Filename)
 		http.Error(w, "file already exists", http.StatusConflict)
 		return

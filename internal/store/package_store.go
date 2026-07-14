@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"valisgo/internal/domain"
 
 	"gorm.io/gorm"
@@ -17,6 +19,9 @@ func NewPackageStore(db *gorm.DB) domain.PackageStore {
 func (s *packageStore) GetByNormalizedNameAndRepository(normalizedName string, repositoryID uint) (*domain.Package, error) {
 	var pkg domain.Package
 	result := s.db.Where("normalized_name = ? AND repository_id = ?", normalizedName, repositoryID).First(&pkg)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if result.Error != nil {
 		return nil, result.Error
 	}

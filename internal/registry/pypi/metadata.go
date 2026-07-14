@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"valisgo/internal/domain"
+	"valisgo/internal/registry"
 
 	"github.com/go-chi/chi/v5"
-	"gorm.io/gorm"
 )
 
 func (p *PyPIProtocol) handleSimpleIndex(w http.ResponseWriter, req *http.Request) {
@@ -72,6 +72,9 @@ func (p *PyPIProtocol) fetchLocalPackageFiles(req *http.Request, reg *domain.Reg
 	if err != nil {
 		return nil, err
 	}
+	if pkg == nil {
+		return nil, errors.New("package not found")
+	}
 	files, err := p.packageFileStore.ListByPackage(pkg.ID)
 	if err != nil {
 		return nil, err
@@ -115,13 +118,19 @@ func (p *PyPIProtocol) handleSimplePackage(w http.ResponseWriter, req *http.Requ
 
 	if err != nil {
 		slog.Error("Failed to fetch package files", "error", err, "package", pkgName, "repository", repo.Name)
-		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "package not found" {
-			http.Error(w, "package not found", http.StatusNotFound)
-		} else if repo.Type == domain.RepositoryTypeProxy && err.Error() == "bad gateway" {
-			http.Error(w, "bad gateway", http.StatusBadGateway)
-		} else {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		}
+	}
+
+	if err != nil && err.Error() == "package not found" {
+		http.Error(w, "package not found", http.StatusNotFound)
+		return
+	}
+
+	if err != nil && repo.Type == domain.RepositoryTypeProxy && err.Error() == "bad gateway" {
+		http.Error(w, "bad gateway", http.StatusBadGateway)
+		return
+	}
+
+	if registry.HandleInternalError(w, err) {
 		return
 	}
 

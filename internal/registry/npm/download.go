@@ -3,7 +3,6 @@ package npm
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +12,6 @@ import (
 	"valisgo/internal/registry"
 
 	"github.com/go-chi/chi/v5"
-	"gorm.io/gorm"
 )
 
 func (p *NPMProtocol) handleDownload(w http.ResponseWriter, req *http.Request) {
@@ -28,20 +26,19 @@ func (p *NPMProtocol) handleDownload(w http.ResponseWriter, req *http.Request) {
 	}
 
 	pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if repo.Type == domain.RepositoryTypeProxy {
-				p.proxyDownload(w, req, repo, filename)
-				return
-			}
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+	if pkgFile != nil {
+		p.serveFileFromStorage(w, req, pkgFile)
 		return
 	}
 
-	p.serveFileFromStorage(w, req, pkgFile)
+	if repo.Type == domain.RepositoryTypeProxy {
+		p.proxyDownload(w, req, repo, filename)
+		return
+	}
+	http.Error(w, "file not found", http.StatusNotFound)
 }
 
 func (p *NPMProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, repo *domain.Repository, filename string) {
@@ -56,16 +53,15 @@ func (p *NPMProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, re
 	blobKey := fmt.Sprintf("%d/%s", repo.ID, filename)
 
 	pkg, err := p.getOrCreatePackage(req.Context(), repo.ID, pkgName, pkgName)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if registry.HandleInternalError(w, err) {
 		return
 	}
 
 	tw := &trackedWriter{ResponseWriter: w}
 
 	_, err, _ = p.downloadSF.Do(blobKey, func() (interface{}, error) {
-		_, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
-		if err == nil {
+		pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
+		if err == nil && pkgFile != nil {
 			return nil, nil
 		}
 
@@ -80,14 +76,15 @@ func (p *NPMProtocol) proxyDownload(w http.ResponseWriter, req *http.Request, re
 		return
 	}
 
-	if !tw.written {
-		pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		p.serveFileFromStorage(w, req, pkgFile)
+	if tw.written {
+		return
 	}
+
+	pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filename, repo.ID)
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+	p.serveFileFromStorage(w, req, pkgFile)
 }
 
 func (p *NPMProtocol) saveProxiedFile(ctx context.Context, r io.Reader, size int64, repoID uint, pkg *domain.Package, filename, blobKey string) error {

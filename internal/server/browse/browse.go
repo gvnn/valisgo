@@ -10,7 +10,6 @@ import (
 	"valisgo/internal/storage"
 
 	"github.com/go-chi/chi/v5"
-	"gorm.io/gorm"
 )
 
 //go:embed templates/*.html
@@ -24,12 +23,21 @@ var (
 )
 
 type API struct {
-	db      *gorm.DB
-	storage storage.Storage
+	registryStore    domain.RegistryStore
+	repositoryStore  domain.RepositoryStore
+	packageStore     domain.PackageStore
+	packageFileStore domain.PackageFileStore
+	storage          storage.Storage
 }
 
-func NewAPI(db *gorm.DB, storage storage.Storage) *API {
-	return &API{db: db, storage: storage}
+func NewAPI(registryStore domain.RegistryStore, repositoryStore domain.RepositoryStore, packageStore domain.PackageStore, packageFileStore domain.PackageFileStore, storage storage.Storage) *API {
+	return &API{
+		registryStore:    registryStore,
+		repositoryStore:  repositoryStore,
+		packageStore:     packageStore,
+		packageFileStore: packageFileStore,
+		storage:          storage,
+	}
 }
 
 func (a *API) MountRoutes() chi.Router {
@@ -37,14 +45,13 @@ func (a *API) MountRoutes() chi.Router {
 	r.Get("/", a.HandleRegistries)
 	r.Get("/{registry}", a.HandleRepositories)
 	r.Get("/{registry}/{repository}", a.HandlePackages)
-	r.Get("/{registry}/{repository}/{package}", a.HandleFiles)
-	r.Get("/{registry}/{repository}/{package}/{filename}", a.HandleDownload)
+	r.Get("/{registry}/{repository}/*", a.HandlePackageOrFile)
 	return r
 }
 
 func (a *API) HandleRegistries(w http.ResponseWriter, r *http.Request) {
-	var registries []domain.Registry
-	if err := a.db.Find(&registries).Error; err != nil {
+	registries, err := a.registryStore.All()
+	if err != nil {
 		http.Error(w, "Failed to load registries", http.StatusInternalServerError)
 		return
 	}
@@ -58,21 +65,20 @@ func (a *API) HandleRegistries(w http.ResponseWriter, r *http.Request) {
 func (a *API) HandleRepositories(w http.ResponseWriter, r *http.Request) {
 	registryName := chi.URLParam(r, "registry")
 
-	var registry domain.Registry
-	if err := a.db.Where("name = ?", registryName).First(&registry).Error; err != nil {
-		http.Error(w, "Registry not found", http.StatusNotFound)
+	registry, ok := a.getRegistry(w, registryName)
+	if !ok {
 		return
 	}
 
-	var repos []domain.Repository
-	if err := a.db.Where("registry_id = ?", registry.ID).Find(&repos).Error; err != nil {
+	repos, err := a.repositoryStore.ListByRegistryID(registry.ID)
+	if err != nil {
 		http.Error(w, "Failed to load repositories", http.StatusInternalServerError)
 		return
 	}
 
 	data := struct {
 		RegistryName string
-		Repositories []domain.Repository
+		Repositories []*domain.Repository
 	}{
 		RegistryName: registry.Name,
 		Repositories: repos,
@@ -88,20 +94,18 @@ func (a *API) HandlePackages(w http.ResponseWriter, r *http.Request) {
 	registryName := chi.URLParam(r, "registry")
 	repositoryName := chi.URLParam(r, "repository")
 
-	var registry domain.Registry
-	if err := a.db.Where("name = ?", registryName).First(&registry).Error; err != nil {
-		http.Error(w, "Registry not found", http.StatusNotFound)
+	registry, ok := a.getRegistry(w, registryName)
+	if !ok {
 		return
 	}
 
-	var repo domain.Repository
-	if err := a.db.Where("name = ? AND registry_id = ?", repositoryName, registry.ID).First(&repo).Error; err != nil {
-		http.Error(w, "Repository not found", http.StatusNotFound)
+	repo, ok := a.getRepository(w, repositoryName, registry.ID)
+	if !ok {
 		return
 	}
 
-	var pkgs []domain.Package
-	if err := a.db.Where("repository_id = ?", repo.ID).Find(&pkgs).Error; err != nil {
+	pkgs, err := a.packageStore.ListByRepository(repo.ID)
+	if err != nil {
 		http.Error(w, "Failed to load packages", http.StatusInternalServerError)
 		return
 	}
@@ -109,7 +113,7 @@ func (a *API) HandlePackages(w http.ResponseWriter, r *http.Request) {
 	data := struct {
 		RegistryName   string
 		RepositoryName string
-		Packages       []domain.Package
+		Packages       []*domain.Package
 	}{
 		RegistryName:   registry.Name,
 		RepositoryName: repo.Name,
@@ -122,31 +126,57 @@ func (a *API) HandlePackages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) HandleFiles(w http.ResponseWriter, r *http.Request) {
+func (a *API) HandlePackageOrFile(w http.ResponseWriter, r *http.Request) {
 	registryName := chi.URLParam(r, "registry")
 	repositoryName := chi.URLParam(r, "repository")
-	packageName := chi.URLParam(r, "package")
-
-	var registry domain.Registry
-	if err := a.db.Where("name = ?", registryName).First(&registry).Error; err != nil {
-		http.Error(w, "Registry not found", http.StatusNotFound)
+	pathParam := chi.URLParam(r, "*")
+	
+	if pathParam == "" {
+		a.HandlePackages(w, r)
 		return
 	}
 
-	var repo domain.Repository
-	if err := a.db.Where("name = ? AND registry_id = ?", repositoryName, registry.ID).First(&repo).Error; err != nil {
-		http.Error(w, "Repository not found", http.StatusNotFound)
+	registry, ok := a.getRegistry(w, registryName)
+	if !ok {
 		return
 	}
 
-	var pkg domain.Package
-	if err := a.db.Where("normalized_name = ? AND repository_id = ?", packageName, repo.ID).First(&pkg).Error; err != nil {
+	repo, ok := a.getRepository(w, repositoryName, registry.ID)
+	if !ok {
+		return
+	}
+
+	var pkgName, fileName string
+
+	switch registry.Format {
+	case domain.FormatGo:
+		pkgName, fileName = parseGoPath(pathParam)
+	case domain.FormatNPM:
+		pkgName, fileName = parseNPMPath(pathParam)
+	default:
+		pkgName, fileName = parseDefaultPath(pathParam)
+	}
+
+	pkg, err := a.packageStore.GetByNormalizedNameAndRepository(pkgName, repo.ID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if pkg == nil {
 		http.Error(w, "Package not found", http.StatusNotFound)
 		return
 	}
 
-	var files []domain.PackageFile
-	if err := a.db.Where("package_id = ?", pkg.ID).Find(&files).Error; err != nil {
+	if fileName == "" {
+		a.renderFiles(w, r, registry, repo, pkg)
+	} else {
+		a.renderDownload(w, r, pkg, fileName)
+	}
+}
+
+func (a *API) renderFiles(w http.ResponseWriter, r *http.Request, registry *domain.Registry, repo *domain.Repository, pkg *domain.Package) {
+	files, err := a.packageFileStore.ListByPackage(pkg.ID)
+	if err != nil {
 		http.Error(w, "Failed to load files", http.StatusInternalServerError)
 		return
 	}
@@ -155,7 +185,7 @@ func (a *API) HandleFiles(w http.ResponseWriter, r *http.Request) {
 		RegistryName   string
 		RepositoryName string
 		PackageName    string
-		Files          []domain.PackageFile
+		Files          []*domain.PackageFile
 	}{
 		RegistryName:   registry.Name,
 		RepositoryName: repo.Name,
@@ -169,32 +199,13 @@ func (a *API) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *API) HandleDownload(w http.ResponseWriter, r *http.Request) {
-	registryName := chi.URLParam(r, "registry")
-	repositoryName := chi.URLParam(r, "repository")
-	packageName := chi.URLParam(r, "package")
-	filename := chi.URLParam(r, "filename")
-
-	var registry domain.Registry
-	if err := a.db.Where("name = ?", registryName).First(&registry).Error; err != nil {
-		http.Error(w, "Registry not found", http.StatusNotFound)
+func (a *API) renderDownload(w http.ResponseWriter, r *http.Request, pkg *domain.Package, filename string) {
+	pkgFile, err := a.packageFileStore.GetByFilenameAndPackage(filename, pkg.ID)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-
-	var repo domain.Repository
-	if err := a.db.Where("name = ? AND registry_id = ?", repositoryName, registry.ID).First(&repo).Error; err != nil {
-		http.Error(w, "Repository not found", http.StatusNotFound)
-		return
-	}
-
-	var pkg domain.Package
-	if err := a.db.Where("normalized_name = ? AND repository_id = ?", packageName, repo.ID).First(&pkg).Error; err != nil {
-		http.Error(w, "Package not found", http.StatusNotFound)
-		return
-	}
-
-	var pkgFile domain.PackageFile
-	if err := a.db.Where("filename = ? AND package_id = ?", filename, pkg.ID).First(&pkgFile).Error; err != nil {
+	if pkgFile == nil {
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
 	}
@@ -209,4 +220,30 @@ func (a *API) HandleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+pkgFile.Filename+"\"")
 	w.Header().Set("Content-Type", "application/octet-stream")
 	io.Copy(w, reader)
+}
+
+func (a *API) getRegistry(w http.ResponseWriter, name string) (*domain.Registry, bool) {
+	registry, err := a.registryStore.GetByName(name)
+	if err != nil {
+		http.Error(w, "Failed to fetch registry", http.StatusInternalServerError)
+		return nil, false
+	}
+	if registry == nil {
+		http.Error(w, "Registry not found", http.StatusNotFound)
+		return nil, false
+	}
+	return registry, true
+}
+
+func (a *API) getRepository(w http.ResponseWriter, name string, registryID uint) (*domain.Repository, bool) {
+	repo, err := a.repositoryStore.GetByNameAndRegistryID(name, registryID)
+	if err != nil {
+		http.Error(w, "Failed to fetch repository", http.StatusInternalServerError)
+		return nil, false
+	}
+	if repo == nil {
+		http.Error(w, "Repository not found", http.StatusNotFound)
+		return nil, false
+	}
+	return repo, true
 }

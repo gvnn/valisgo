@@ -14,7 +14,6 @@ import (
 	"valisgo/internal/storage"
 
 	"github.com/go-chi/chi/v5"
-	"gorm.io/gorm"
 )
 
 type FileProtocol struct {
@@ -43,7 +42,7 @@ func (p *FileProtocol) MountRoutes() chi.Router {
 
 func (p *FileProtocol) handleDownload(w http.ResponseWriter, req *http.Request) {
 	repo := domain.RepositoryFromContext(req.Context())
-	
+
 	filePath := chi.URLParam(req, "*")
 	if filePath == "" {
 		http.Error(w, "bad request: empty path", http.StatusBadRequest)
@@ -56,20 +55,23 @@ func (p *FileProtocol) handleDownload(w http.ResponseWriter, req *http.Request) 
 	}
 
 	pkgFile, err := p.packageFileStore.GetByFilenameAndRepository(filePath, repo.ID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "internal error", http.StatusInternalServerError)
+
+	if registry.HandleInternalError(w, err) {
+		return
+	}
+
+	if pkgFile == nil {
+		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
 
 	reader, err := p.storage.Get(req.Context(), pkgFile.BlobKey)
+
 	if err != nil {
 		http.Error(w, "failed to read file from storage", http.StatusInternalServerError)
 		return
 	}
+
 	defer reader.Close()
 
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -80,22 +82,34 @@ func (p *FileProtocol) handleDownload(w http.ResponseWriter, req *http.Request) 
 func (p *FileProtocol) getOrCreateRootPackage(ctx context.Context, repoID uint) (*domain.Package, error) {
 	pkgName := "root"
 	pkg, err := p.packageStore.GetByNormalizedNameAndRepository(pkgName, repoID)
-	if err == nil {
-		return pkg, nil
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+
+	if err != nil {
 		return nil, fmt.Errorf("internal error fetching root package: %w", err)
 	}
 
-	pkg = &domain.Package{
+	if pkg != nil {
+		return pkg, nil
+	}
+
+	newPkg := &domain.Package{
 		Name:           pkgName,
 		NormalizedName: pkgName,
 		RepositoryID:   repoID,
 	}
-	if err := p.packageStore.Create(pkg); err != nil {
-		return nil, fmt.Errorf("failed to create root package: %w", err)
+
+	err = p.packageStore.Create(newPkg)
+
+	if err == nil {
+		return newPkg, nil
 	}
-	return pkg, nil
+
+	existing, errGet := p.packageStore.GetByNormalizedNameAndRepository(pkgName, repoID)
+
+	if errGet == nil && existing != nil {
+		return existing, nil
+	}
+
+	return nil, fmt.Errorf("failed to create root package: %w", err)
 }
 
 type countTeeReader struct {
@@ -131,7 +145,7 @@ func extractPayload(req *http.Request, filePath string) (io.ReadCloser, string, 
 			return nil, "", errors.New("missing file or content field")
 		}
 	}
-	
+
 	if strings.HasSuffix(filePath, "/") {
 		filePath += header.Filename
 	}
@@ -146,7 +160,7 @@ func (p *FileProtocol) storeFileAndMetadata(ctx context.Context, repoID, pkgID u
 	}
 
 	blobKey := fmt.Sprintf("%d/%s", repoID, filePath)
-	
+
 	if err := p.storage.Put(ctx, blobKey, ctr); err != nil {
 		return fmt.Errorf("failed to store file: %w", err)
 	}
@@ -199,13 +213,12 @@ func (p *FileProtocol) handleUpload(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = p.packageFileStore.GetByFilenameAndPackage(finalFilePath, pkg.ID)
-	if err == nil {
-		http.Error(w, "file already exists", http.StatusConflict)
+	pkgFile, err := p.packageFileStore.GetByFilenameAndPackage(finalFilePath, pkg.ID)
+	if registry.HandleInternalError(w, err) {
 		return
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+	if pkgFile != nil {
+		http.Error(w, "file already exists", http.StatusConflict)
 		return
 	}
 

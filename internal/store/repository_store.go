@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"valisgo/internal/domain"
 
 	"gorm.io/gorm"
@@ -38,9 +40,19 @@ func (s *repositoryStore) GetByNameAndRegistryID(name string, registryID uint) (
 		Where("name = ? AND registry_id = ?", name, registryID).
 		First(&repo).Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return &repo, nil
 }
+
+func (s *repositoryStore) ListByRegistryID(registryID uint) ([]*domain.Repository, error) {
+	var repositories []*domain.Repository
+	err := s.db.Where("registry_id = ?", registryID).Find(&repositories).Error
+	return repositories, err
+}
+
