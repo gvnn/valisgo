@@ -16,6 +16,7 @@ import (
 	"valisgo/internal/server/management"
 	"valisgo/internal/server/registries"
 	"valisgo/internal/storage"
+	"valisgo/internal/store"
 
 	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/fileblob"
@@ -104,7 +105,12 @@ func main() {
 	registriesAPI := registries.NewAPI(db, blobStorage)
 	r.Mount("/registries", registriesAPI.MountRoutes())
 
-	browseAPI := browse.NewAPI(db, blobStorage)
+	registryStore := store.NewRegistryStore(db)
+	repositoryStore := store.NewRepositoryStore(db)
+	packageStore := store.NewPackageStore(db)
+	packageFileStore := store.NewPackageFileStore(db)
+	
+	browseAPI := browse.NewAPI(registryStore, repositoryStore, packageStore, packageFileStore, blobStorage)
 	r.Mount("/browse", browseAPI.MountRoutes())
 
 	log.Println("Server listening on :8080...")

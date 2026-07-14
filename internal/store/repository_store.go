@@ -49,3 +49,10 @@ func (s *repositoryStore) GetByNameAndRegistryID(name string, registryID uint) (
 
 	return &repo, nil
 }
+
+func (s *repositoryStore) ListByRegistryID(registryID uint) ([]*domain.Repository, error) {
+	var repositories []*domain.Repository
+	err := s.db.Where("registry_id = ?", registryID).Find(&repositories).Error
+	return repositories, err
+}
+
