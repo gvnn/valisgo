@@ -10,8 +10,15 @@ import (
 )
 
 var (
+	// Global API config
 	address string
 	format  string
+
+	// Global Authentication config (Used by login, proxy, and the API client)
+	oidcIssuer   string
+	oidcClientID string
+	wifFile      string
+	wifEnv       string
 )
 
 var rootCmd = &cobra.Command{
@@ -43,8 +50,22 @@ func init() {
 		defaultAddr = "http://127.0.0.1:8080/manage"
 	}
 
+	defaultIssuer := os.Getenv("OIDC_ISSUER")
+	if defaultIssuer == "" {
+		defaultIssuer = "http://127.0.0.1:5556/dex"
+	}
+	defaultClientID := os.Getenv("OIDC_CLIENT_ID")
+	if defaultClientID == "" {
+		defaultClientID = "valisgo-cli"
+	}
+
 	rootCmd.PersistentFlags().StringVar(&address, "address", defaultAddr, "Address of the Valisgo server (env: VALISGO_ADDR)")
 	rootCmd.PersistentFlags().StringVar(&format, "format", "json", "Output format (json, csv)")
+
+	rootCmd.PersistentFlags().StringVar(&oidcIssuer, "issuer", defaultIssuer, "OIDC Issuer URL (env: OIDC_ISSUER)")
+	rootCmd.PersistentFlags().StringVar(&oidcClientID, "client-id", defaultClientID, "OIDC Client ID (env: OIDC_CLIENT_ID)")
+	rootCmd.PersistentFlags().StringVar(&wifFile, "wif-file", os.Getenv("OIDC_WIF_FILE"), "Path to Workload Identity Token file")
+	rootCmd.PersistentFlags().StringVar(&wifEnv, "wif-env", os.Getenv("OIDC_WIF_ENV"), "Env Var name containing Workload Identity Token")
 }
 
 func newAPIClient() (*client.ClientWithResponses, error) {
