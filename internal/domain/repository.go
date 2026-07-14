@@ -2,8 +2,7 @@ package domain
 
 import (
 	"context"
-
-	"gorm.io/gorm"
+	"time"
 )
 
 const RepoCtxKey = contextKey("repository")
@@ -25,7 +24,9 @@ const (
 )
 
 type Repository struct {
-	gorm.Model
+	ID        uint      `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	Name           string `gorm:"size:255;not null;uniqueIndex:idx_name_registry"`
 	RegistryID     uint   `gorm:"not null;uniqueIndex:idx_name_registry"`

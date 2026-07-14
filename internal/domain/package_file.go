@@ -1,11 +1,11 @@
 package domain
 
-import (
-	"gorm.io/gorm"
-)
+import "time"
 
 type PackageFile struct {
-	gorm.Model
+	ID        uint      `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	PackageID uint `gorm:"not null;uniqueIndex:idx_package_filename"`
 	Package   Package

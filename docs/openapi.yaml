@@ -62,9 +62,6 @@ components:
         UpdatedAt:
           type: string
           format: date-time
-        DeletedAt:
-          type: string
-          format: date-time
         Name:
           type: string
         Format:

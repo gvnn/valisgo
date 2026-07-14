@@ -2,8 +2,7 @@ package domain
 
 import (
 	"context"
-
-	"gorm.io/gorm"
+	"time"
 )
 
 type contextKey string
@@ -25,7 +24,9 @@ const (
 )
 
 type Registry struct {
-	gorm.Model
+	ID        uint      `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	Name   string         `gorm:"size:255;uniqueIndex;not null"`
 	Format RegistryFormat `gorm:"type:varchar(255);default:'file'"`

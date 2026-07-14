@@ -66,7 +66,6 @@ func (e RegistryInputFormat) Valid() bool {
 // Registry defines model for Registry.
 type Registry struct {
 	CreatedAt *time.Time      `json:"CreatedAt,omitempty"`
-	DeletedAt *time.Time      `json:"DeletedAt,omitempty"`
 	Format    *RegistryFormat `json:"Format,omitempty"`
 	ID        *int            `json:"ID,omitempty"`
 	Name      *string         `json:"Name,omitempty"`
