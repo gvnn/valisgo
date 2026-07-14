@@ -35,6 +35,21 @@ The goal of this project is to provide a free and open-source alternative to Nex
    make dev
    ```
 
+## CLI Utility
+
+`valisgo` includes a command-line interface (`valisgo-cli`) for interacting with the management API.
+
+To run it directly using Go:
+```bash
+go run ./cmd/cli --help
+```
+
+To build a standalone binary:
+```bash
+make build-cli
+./bin/valisgo-cli --help
+```
+
 ### Database Migrations (Atlas)
 
 Migrations are generated and applied via Atlas.

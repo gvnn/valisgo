@@ -47,4 +47,5 @@ type RepositoryStore interface {
 	All() ([]*Repository, error)
 	GetByNameAndRegistryID(name string, registryID uint) (*Repository, error)
 	ListByRegistryID(registryID uint) ([]*Repository, error)
+	Create(repository *Repository) error
 }

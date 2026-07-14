@@ -55,4 +55,6 @@ func (s *repositoryStore) ListByRegistryID(registryID uint) ([]*domain.Repositor
 	err := s.db.Where("registry_id = ?", registryID).Find(&repositories).Error
 	return repositories, err
 }
-
+func (s *repositoryStore) Create(repository *domain.Repository) error {
+	return s.db.Create(repository).Error
+}
