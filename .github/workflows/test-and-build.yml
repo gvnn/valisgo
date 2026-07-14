@@ -35,7 +35,9 @@ jobs:
         run: make install
 
       - name: Build
-        run: make build
+        run: |
+          make build
+          make build-cli
 
       - name: Upload Valisgo Artifact
         uses: actions/upload-artifact@v4

@@ -7,6 +7,7 @@ require (
 	github.com/casbin/gorm-adapter/v3 v3.41.0
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/oapi-codegen/runtime v1.5.0
+	github.com/spf13/cobra v1.10.2
 	gocloud.dev v0.46.0
 	golang.org/x/sync v0.21.0
 	gorm.io/driver/postgres v1.6.0
@@ -67,6 +68,7 @@ require (
 	github.com/googleapis/go-gorm-spanner v1.8.6 // indirect
 	github.com/googleapis/go-sql-spanner v1.17.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.10.0 // indirect
@@ -97,6 +99,7 @@ require (
 	github.com/speakeasy-api/openapi v1.19.2 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/tdewolff/parse/v2 v2.8.13 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect

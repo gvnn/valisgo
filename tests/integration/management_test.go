@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"valisgo/tests/integration/client"
+	"valisgo/cmd/cli/client"
 )
 
 func ptr[T any](v T) *T {
@@ -35,9 +35,40 @@ func TestManagementClientIntegration(t *testing.T) {
 		if listRes.StatusCode() != 200 {
 			t.Fatalf("expected 200, got %d", listRes.StatusCode())
 		}
-		
+
 		if len(*listRes.JSON200) == 0 {
 			t.Fatalf("expected at least 1 registry")
+		}
+	})
+	t.Run("Create and List Repositories", func(t *testing.T) {
+		// Ensure a registry exists first
+		registryName := "integration-repo-reg"
+		createRegBody := client.CreateRegistryJSONRequestBody{
+			Name:   registryName,
+			Format: ptr(client.RegistryInputFormatGo),
+		}
+		c.CreateRegistryWithResponse(ctx, createRegBody)
+
+		// Create Repository
+		createRepoBody := client.CreateRepositoryJSONRequestBody{
+			Name:         "integration-repo",
+			RegistryName: registryName,
+			Type:         ptr(client.RepositoryInputTypeLocal),
+		}
+		repoRes, _ := c.CreateRepositoryWithResponse(ctx, createRepoBody)
+
+		if repoRes.StatusCode() != 201 && repoRes.StatusCode() != 409 {
+			t.Fatalf("expected 201 or 409 for create repository, got %d", repoRes.StatusCode())
+		}
+
+		// List Repositories
+		listRes, _ := c.ListRepositoriesWithResponse(ctx, &client.ListRepositoriesParams{})
+		if listRes.StatusCode() != 200 {
+			t.Fatalf("expected 200 for list repositories, got %d", listRes.StatusCode())
+		}
+
+		if len(*listRes.JSON200) == 0 {
+			t.Fatalf("expected at least 1 repository")
 		}
 	})
 }

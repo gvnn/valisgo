@@ -1,4 +1,4 @@
-.PHONY: install setup build run dev test test-integration test-cov clean migrate-diff migrate-apply db-up db-down generate-client
+.PHONY: install setup build build-cli run dev test test-integration test-cov clean migrate-diff migrate-apply db-up db-down generate-client
 
 BINARY_NAME := valisgo
 BIN_DIR := bin
@@ -17,6 +17,9 @@ setup: install
 
 build:
 	go build -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/server/main.go
+
+build-cli:
+	go build -o $(BIN_DIR)/$(BINARY_NAME)-cli ./cmd/cli/main.go
 
 dev:
 	go tool air
@@ -51,5 +54,5 @@ migrate-down:
 
 generate-client:
 	@echo "Generating OpenAPI client..."
-	mkdir -p tests/integration/client
-	go tool oapi-codegen -generate client,types -package client docs/openapi.yaml > tests/integration/client/client.gen.go
+	mkdir -p cmd/cli/client
+	go tool oapi-codegen -generate client,types -package client docs/openapi.yaml > cmd/cli/client/client.gen.go
