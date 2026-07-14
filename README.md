@@ -2,7 +2,30 @@
 
 🧳 A suitcase full of wonders.
 
-The goal of this project is to provide a free and open-source alternative to Nexus and Jfrog.
+The goal of this project is to provide a free and open-source alternative to Nexus and JFrog.
+
+## Supported Protocols
+
+Here is a comparison of protocols currently supported by Valisgo compared to Nexus and JFrog Artifactory, to track what remains to be implemented:
+
+| Protocol / Format | Valisgo | Nexus | JFrog |
+|-------------------|:-------:|:-----:|:-----:|
+| Generic (File)    |   ✅    |   ✅  |   ✅  |
+| Go Modules        |   ✅    |   ✅  |   ✅  |
+| npm               |   ✅    |   ✅  |   ✅  |
+| PyPI              |   ✅    |   ✅  |   ✅  |
+| Docker / OCI      |   ❌    |   ✅  |   ✅  |
+| Maven / Gradle    |   ❌    |   ✅  |   ✅  |
+| NuGet             |   ❌    |   ✅  |   ✅  |
+| Helm              |   ❌    |   ✅  |   ✅  |
+| RubyGems          |   ❌    |   ✅  |   ✅  |
+| APT (Debian)      |   ❌    |   ✅  |   ✅  |
+| YUM / RPM         |   ❌    |   ✅  |   ✅  |
+| Conan (C/C++)     |   ❌    |   ✅  |   ✅  |
+| Cargo (Rust)      |   ❌    |  *via plugin* | ✅ |
+| Composer (PHP)    |   ❌    |   ✅  |   ✅  |
+| Swift             |   ❌    |   ❌  |   ✅  |
+| CocoaPods         |   ❌    |   ✅  |   ✅  |
 
 ## Prerequisites
 
