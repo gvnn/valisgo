@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"valisgo/cmd/cli/client"
 
@@ -47,7 +48,7 @@ func Execute() {
 func init() {
 	defaultAddr := os.Getenv("VALISGO_ADDR")
 	if defaultAddr == "" {
-		defaultAddr = "http://127.0.0.1:8080/manage"
+		defaultAddr = "http://127.0.0.1:8080"
 	}
 
 	defaultIssuer := os.Getenv("OIDC_ISSUER")
@@ -69,5 +70,6 @@ func init() {
 }
 
 func newAPIClient() (*client.ClientWithResponses, error) {
-	return client.NewClientWithResponses(address)
+	manageAddr := strings.TrimRight(address, "/") + "/manage"
+	return client.NewClientWithResponses(manageAddr)
 }
