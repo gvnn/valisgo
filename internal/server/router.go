@@ -1,18 +1,22 @@
 package server
 
 import (
+	"valisgo/internal/auth"
+
 	"github.com/casbin/casbin/v3"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	enforcer *casbin.Enforcer
+	enforcer      *casbin.Enforcer
+	authenticator *auth.Authenticator
 }
 
-func NewServer(enforcer *casbin.Enforcer) *Server {
+func NewServer(enforcer *casbin.Enforcer, authenticator *auth.Authenticator) *Server {
 	return &Server{
-		enforcer: enforcer,
+		enforcer:      enforcer,
+		authenticator: authenticator,
 	}
 }
 
@@ -23,7 +27,7 @@ func (s *Server) SetupRouter() chi.Router {
 	r.Use(middleware.Recoverer)
 
 	if s.enforcer != nil {
-		r.Use(CasbinAuthorization(s.enforcer))
+		r.Use(CasbinAuthorization(s.enforcer, s.authenticator))
 	}
 
 	return r

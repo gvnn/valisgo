@@ -7,6 +7,7 @@ import (
 	"valisgo/internal/database"
 	"valisgo/internal/domain"
 	"valisgo/internal/env"
+	"valisgo/internal/server"
 
 	"gorm.io/gorm"
 )
@@ -28,8 +29,14 @@ func main() {
 	flag.Parse()
 
 	db := setupDatabase()
+	enforcer := server.SetupCasbin(db)
 
 	log.Println("Seeding database...")
+
+	// Seed Casbin Policies
+	enforcer.AddPolicy("admin", "/*", "*")
+	enforcer.AddGroupingPolicy("admin@valisgo.local", "admin")
+	log.Println("Casbin RBAC policies seeded.")
 
 	// Create PyPI registry if it doesn't exist
 	var pypiReg domain.Registry

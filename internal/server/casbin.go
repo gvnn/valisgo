@@ -49,8 +49,5 @@ m = g(r.sub, p.sub) && keyMatch(r.obj, p.obj) && (r.act == p.act || p.act == "*"
 
 	enforcer.EnableAutoSave(true)
 
-	// Scaffolding: Allow "anon" user full access for now
-	enforcer.AddPolicy("anon", "/*", "*")
-
 	return enforcer
 }

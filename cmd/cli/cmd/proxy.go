@@ -8,8 +8,10 @@ import (
 	"syscall"
 
 	"valisgo/cmd/cli/proxy"
+	"valisgo/internal/auth"
 
 	"github.com/spf13/cobra"
+	"github.com/zalando/go-keyring"
 )
 
 var (
@@ -30,9 +32,36 @@ var proxyCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
 
+		cfg := auth.OIDCConfig{
+			IssuerURL:         oidcIssuer,
+			ClientID:          oidcClientID,
+			Scopes:            []string{"openid", "profile", "email", "offline_access"},
+			WorkloadTokenFile: wifFile,
+			WorkloadTokenEnv:  wifEnv,
+		}
+
+		authenticator, err := auth.NewAuthenticator(ctx, cfg)
+		if err != nil {
+			return err
+		}
+
+		var storedRefreshToken string
+		if wifFile == "" && wifEnv == "" {
+			token, err := keyring.Get("valisgo", "refresh_token")
+			if err != nil {
+				return fmt.Errorf("no refresh token found in keyring. Please run 'valisgo-cli login' first")
+			}
+			storedRefreshToken = token
+		}
+
+		tokenSource, err := authenticator.GetTokenSource(ctx, storedRefreshToken)
+		if err != nil {
+			return err
+		}
+
 		bindAddr := fmt.Sprintf("%s:%s", proxyBindAddr, proxyPort)
 
-		srv, err := proxy.NewServer(proxyUpstream, bindAddr)
+		srv, err := proxy.NewServer(proxyUpstream, bindAddr, tokenSource)
 		if err != nil {
 			return err
 		}

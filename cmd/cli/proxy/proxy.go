@@ -8,14 +8,17 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 type Server struct {
 	UpstreamURL *url.URL
 	BindAddr    string
+	TokenSource oauth2.TokenSource
 }
 
-func NewServer(upstream, bindAddr string) (*Server, error) {
+func NewServer(upstream, bindAddr string, ts oauth2.TokenSource) (*Server, error) {
 	u, err := url.Parse(upstream)
 	if err != nil {
 		return nil, fmt.Errorf("invalid upstream URL: %w", err)
@@ -23,6 +26,7 @@ func NewServer(upstream, bindAddr string) (*Server, error) {
 	return &Server{
 		UpstreamURL: u,
 		BindAddr:    bindAddr,
+		TokenSource: ts,
 	}, nil
 }
 
@@ -31,14 +35,14 @@ func (s *Server) Start(ctx context.Context) error {
 	revProxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(s.UpstreamURL)
-
 			pr.SetXForwarded()
 
-			// INJECT FAKE TOKEN (For testing purposes)
-			fakeToken := "fake-jwt-token-for-local-testing-12345"
-
-			pr.Out.Header.Set("Authorization", "Bearer "+fakeToken)
-
+			token, err := s.TokenSource.Token()
+			if err != nil {
+				slog.Error("Failed to get valid access token", "error", err)
+			} else {
+				pr.Out.Header.Set("Authorization", "Bearer "+token.AccessToken)
+			}
 		},
 	}
 

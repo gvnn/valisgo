@@ -91,7 +91,7 @@ func main() {
 
 	enforcer := server.SetupCasbin(db)
 
-	srv := server.NewServer(enforcer)
+	srv := server.NewServer(enforcer, nil)
 
 	r := srv.SetupRouter()
 

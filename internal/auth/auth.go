@@ -113,3 +113,33 @@ func (a *Authenticator) LoginBrowser(ctx context.Context, openBrowser func(url s
 		return token.RefreshToken, nil
 	}
 }
+
+func (a *Authenticator) VerifyIDToken(ctx context.Context, rawToken string) (*oidc.IDToken, error) {
+	verifier := a.Provider.Verifier(&oidc.Config{
+		ClientID: a.Config.ClientID,
+	})
+	return verifier.Verify(ctx, rawToken)
+}
+
+func (a *Authenticator) VerifyAccessToken(ctx context.Context, rawToken string) (*oidc.IDToken, error) {
+	verifier := a.Provider.Verifier(&oidc.Config{
+		SkipClientIDCheck: true,
+	})
+	return verifier.Verify(ctx, rawToken)
+}
+
+func (a *Authenticator) GetTokenSource(ctx context.Context, storedRefreshToken string) (oauth2.TokenSource, error) {
+	if a.Config.WorkloadTokenFile != "" || a.Config.WorkloadTokenEnv != "" {
+		return nil, fmt.Errorf("workload identity federation is not yet implemented")
+	}
+
+	oauthConfig := oauth2.Config{
+		ClientID: a.Config.ClientID,
+		Endpoint: a.Provider.Endpoint(),
+		Scopes:   a.Config.Scopes,
+	}
+
+	return oauthConfig.TokenSource(ctx, &oauth2.Token{
+		RefreshToken: storedRefreshToken,
+	}), nil
+}
