@@ -9,6 +9,7 @@ import (
 
 	"valisgo/cmd/cli/proxy"
 	"valisgo/internal/auth"
+	"valisgo/internal/strutil"
 
 	"github.com/spf13/cobra"
 	"github.com/zalando/go-keyring"
@@ -37,7 +38,7 @@ var proxyCmd = &cobra.Command{
 		cfg := auth.OIDCConfig{
 			IssuerURL: oidcIssuer,
 			ClientID:  oidcClientID,
-			Scopes:    []string{"openid", "profile", "email", "offline_access"},
+			Scopes:    strutil.ParseCommaSeparated(oidcScopes),
 		}
 		authenticator, err := auth.NewAuthenticator(ctx, cfg)
 		if err != nil {

@@ -18,6 +18,7 @@ var (
 	// Global Authentication config (Used by login, proxy, and the API client)
 	oidcIssuer   string
 	oidcClientID string
+	oidcScopes   string
 	wifFile      string
 	wifEnv       string
 )
@@ -61,11 +62,17 @@ func init() {
 		defaultClientID = "valisgo-cli"
 	}
 
+	defaultScopes := os.Getenv("OIDC_SCOPES")
+	if defaultScopes == "" {
+		defaultScopes = "openid,profile,email,offline_access"
+	}
+
 	rootCmd.PersistentFlags().StringVar(&address, "address", defaultAddr, "Address of the Valisgo server (env: VALISGO_ADDR)")
 	rootCmd.PersistentFlags().StringVar(&format, "format", "json", "Output format (json, csv)")
 
 	rootCmd.PersistentFlags().StringVar(&oidcIssuer, "issuer", defaultIssuer, "OIDC Issuer URL (env: OIDC_ISSUER)")
 	rootCmd.PersistentFlags().StringVar(&oidcClientID, "client-id", defaultClientID, "OIDC Client ID (env: OIDC_CLIENT_ID)")
+	rootCmd.PersistentFlags().StringVar(&oidcScopes, "scopes", defaultScopes, "Comma-separated OIDC scopes (env: OIDC_SCOPES)")
 	rootCmd.PersistentFlags().StringVar(&wifFile, "wif-file", os.Getenv("OIDC_WIF_FILE"), "Path to Workload Identity Token file")
 	rootCmd.PersistentFlags().StringVar(&wifEnv, "wif-env", os.Getenv("OIDC_WIF_ENV"), "Env Var name containing Workload Identity Token")
 }
