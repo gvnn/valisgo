@@ -8,8 +8,12 @@ import (
 	"syscall"
 
 	"valisgo/cmd/cli/proxy"
+	"valisgo/internal/auth"
+	"valisgo/internal/strutil"
 
 	"github.com/spf13/cobra"
+	"github.com/zalando/go-keyring"
+	"golang.org/x/oauth2"
 )
 
 var (
@@ -32,7 +36,28 @@ var proxyCmd = &cobra.Command{
 
 		bindAddr := fmt.Sprintf("%s:%s", proxyBindAddr, proxyPort)
 
-		srv, err := proxy.NewServer(proxyUpstream, bindAddr)
+		var ts oauth2.TokenSource
+		if valisgoToken != "" {
+			ts = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: valisgoToken})
+		} else {
+			cfg := auth.OIDCConfig{
+				IssuerURL: oidcIssuer,
+				ClientID:  oidcClientID,
+				Scopes:    strutil.ParseCommaSeparated(oidcScopes),
+			}
+			authenticator, err := auth.NewAuthenticator(ctx, cfg)
+			if err != nil {
+				return fmt.Errorf("failed to initialize OIDC provider: %w", err)
+			}
+
+			refreshToken, err := keyring.Get("valisgo", "refresh_token")
+			if err != nil {
+				return fmt.Errorf("no refresh token found. please run 'valisgo-cli login'")
+			}
+			ts = authenticator.GetTokenSource(ctx, refreshToken)
+		}
+
+		srv, err := proxy.NewServer(proxyUpstream, bindAddr, ts)
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"valisgo/cmd/cli/client"
@@ -15,7 +16,11 @@ func ptr[T any](v T) *T {
 
 func TestManagementClientIntegration(t *testing.T) {
 	// Connect to the running dev server on the /manage prefix
-	c, _ := client.NewClientWithResponses("http://localhost:8080/manage")
+	manageURL := os.Getenv("VALISGO_MANAGE_URL")
+	if manageURL == "" {
+		manageURL = "http://localhost:8080/manage"
+	}
+	c, _ := client.NewClientWithResponses(manageURL)
 	ctx := context.Background()
 
 	t.Run("Create and List", func(t *testing.T) {

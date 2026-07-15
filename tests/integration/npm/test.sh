@@ -12,13 +12,12 @@ if ! curl -s http://localhost:8080 > /dev/null; then
   exit 1
 fi
 
-PROXY_URL="http://localhost:8080/registries/mynpm/repositories/npm-proxy/"
-LOCAL_URL="http://localhost:8080/registries/mynpm/repositories/npm-local/"
-VIRTUAL_URL="http://localhost:8080/registries/mynpm/repositories/npm-virtual/"
+PROXY_URL="${PROXY_URL:-http://localhost:8080/registries/mynpm/repositories/npm-proxy/}"
+LOCAL_URL="${LOCAL_URL:-http://localhost:8080/registries/mynpm/repositories/npm-local/}"
+VIRTUAL_URL="${VIRTUAL_URL:-http://localhost:8080/registries/mynpm/repositories/npm-virtual/}"
 
 echo "Publishing dummy package..."
 cd tests/integration/npm/dummy-pkg
-echo "//localhost:8080/registries/mynpm/repositories/npm-local/:_authToken=\"dummy-token\"" > .npmrc
 npm version patch
 npm publish --registry="$LOCAL_URL"
 

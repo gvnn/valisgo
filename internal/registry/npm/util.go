@@ -85,6 +85,15 @@ func getScheme(req *http.Request) string {
 	return "http"
 }
 
+// getHost determines the host (taking into account X-Forwarded-Host) from the request.
+func getHost(req *http.Request) string {
+	if xfh := req.Header.Get("X-Forwarded-Host"); xfh != "" {
+		return xfh
+	}
+	return req.Host
+}
+
+
 // formatIntegrity converts a hex-encoded SHA256 string to an NPM integrity string.
 func formatIntegrity(hashHex string) string {
 	hashBytes, err := hex.DecodeString(hashHex)

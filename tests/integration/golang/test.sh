@@ -12,9 +12,9 @@ if ! curl -s http://localhost:8080 > /dev/null; then
   exit 1
 fi
 
-PROXY_URL="http://localhost:8080/registries/mygo/repositories/go-proxy"
-LOCAL_URL="http://localhost:8080/registries/mygo/repositories/go-local"
-VIRTUAL_URL="http://localhost:8080/registries/mygo/repositories/go-virtual"
+PROXY_URL="${PROXY_URL:-http://localhost:8080/registries/mygo/repositories/go-proxy}"
+LOCAL_URL="${LOCAL_URL:-http://localhost:8080/registries/mygo/repositories/go-local}"
+VIRTUAL_URL="${VIRTUAL_URL:-http://localhost:8080/registries/mygo/repositories/go-virtual}"
 
 echo "Publishing dummy package..."
 

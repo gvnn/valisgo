@@ -22,6 +22,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+
     steps:
       - uses: actions/checkout@v7
 
@@ -57,25 +58,81 @@ jobs:
           make migrate-apply
           make seed
 
+      - name: Download wait-for
+        run: |
+          curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
+          chmod +x wait-for
+
+      - name: Start Dex service
+        run: |
+          docker run -d --name dex \
+            -p 5556:5556 \
+            -v ${{ github.workspace }}/configs/dex_config.yaml:/etc/dex/config.docker.yaml:ro \
+            dexidp/dex
+          echo "127.0.0.1 dex" | sudo tee -a /etc/hosts
+          echo "Waiting for Dex to be ready..."
+          ./wait-for http://dex:5556/dex/healthz -t 30 -- echo "Dex is up!"
+
+      - name: Generate Dex Token
+        run: |
+          # Use -u to pass the client id and secret
+          # Use --data-urlencode to pass the user credentials
+          TOKEN_RESPONSE=$(curl -s -X POST 'http://dex:5556/dex/token' \
+            -u "valisgo-cli:" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=password' \
+            --data-urlencode 'scope=openid profile email' \
+            --data-urlencode 'username=admin@valisgo.local' \
+            --data-urlencode 'password=password')
+
+          # Extract the id_token (or access_token) using jq
+          ID_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .id_token)
+          
+          # Mask it in the logs (optional but good practice)
+          echo "::add-mask::$ID_TOKEN"
+          
+          # Make it available to downstream test steps via the CLI's standard env var
+          echo "VALISGO_TOKEN=$ID_TOKEN" >> $GITHUB_ENV
+
       - name: Start Valisgo Server
         run: |
           ./bin/valisgo &
-          curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
-          chmod +x wait-for
           echo "Waiting for Valisgo server to be ready..."
           ./wait-for http://localhost:8080 -t 30 -- echo "Valisgo is up!"
 
+      - name: Start CLI Proxy
+        run: |
+          go run ./cmd/cli proxy --port 9000 --upstream http://localhost:8080 &
+          echo "Waiting for CLI Proxy to be ready..."
+          ./wait-for localhost:9000 -t 30 -- echo "CLI Proxy is up!"
+
       - name: Run PyPI Integration Test
+        env:
+          REGISTRY_URL: http://localhost:9000/registries/mypypi/repositories/myrepo
+          PROXY_URL: http://localhost:9000/registries/mypypi/repositories/pypi-proxy
+          VIRTUAL_URL: http://localhost:9000/registries/mypypi/repositories/pypi-virtual
         run: bash tests/integration/pypi/test.sh
 
       - name: Run File Integration Test
+        env:
+          REGISTRY_URL: http://localhost:9000/registries/myfile/repositories/myrepo
         run: bash tests/integration/file/test.sh
 
       - name: Run NPM Integration Test
+        env:
+          PROXY_URL: http://localhost:9000/registries/mynpm/repositories/npm-proxy/
+          LOCAL_URL: http://localhost:9000/registries/mynpm/repositories/npm-local/
+          VIRTUAL_URL: http://localhost:9000/registries/mynpm/repositories/npm-virtual/
         run: bash tests/integration/npm/test.sh
 
       - name: Run Go Integration Test
+        env:
+          PROXY_URL: http://localhost:9000/registries/mygo/repositories/go-proxy
+          LOCAL_URL: http://localhost:9000/registries/mygo/repositories/go-local
+          VIRTUAL_URL: http://localhost:9000/registries/mygo/repositories/go-virtual
         run: bash tests/integration/golang/test.sh
 
       - name: Run management API test
+        env:
+          VALISGO_MANAGE_URL: http://localhost:9000/manage
         run: make test-integration
