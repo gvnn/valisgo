@@ -21,6 +21,7 @@ var (
 	oidcScopes   string
 	wifFile      string
 	wifEnv       string
+	valisgoToken string
 )
 
 var rootCmd = &cobra.Command{
@@ -75,6 +76,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&oidcScopes, "scopes", defaultScopes, "Comma-separated OIDC scopes (env: OIDC_SCOPES)")
 	rootCmd.PersistentFlags().StringVar(&wifFile, "wif-file", os.Getenv("OIDC_WIF_FILE"), "Path to Workload Identity Token file")
 	rootCmd.PersistentFlags().StringVar(&wifEnv, "wif-env", os.Getenv("OIDC_WIF_ENV"), "Env Var name containing Workload Identity Token")
+	rootCmd.PersistentFlags().StringVar(&valisgoToken, "token", os.Getenv("VALISGO_TOKEN"), "Raw access or ID token (bypasses OIDC/keyring if set)")
 }
 
 func newAPIClient() (*client.ClientWithResponses, error) {

@@ -5,8 +5,8 @@ set -e
 cd "$(dirname "$0")/../../.."
 PROJECT_ROOT=$(pwd)
 
-REGISTRY_URL="http://localhost:8080/registries/mypypi/repositories/myrepo"
-PKG_DIR="tests/integration/pypi/dummy_pkg"
+REGISTRY_URL="${REGISTRY_URL:-http://localhost:8080/registries/mypypi/repositories/myrepo}"
+PKG_DIR="${PKG_DIR:-tests/integration/pypi/dummy_pkg}"
 
 echo "Building python package..."
 cd "$PKG_DIR"
@@ -25,8 +25,8 @@ echo "Installing package using pip..."
 python3 -m venv venv
 ./venv/bin/pip install --index-url "${REGISTRY_URL}/simple/" dummy-pkg-integration
 
-PROXY_URL="http://localhost:8080/registries/mypypi/repositories/pypi-proxy"
-VIRTUAL_URL="http://localhost:8080/registries/mypypi/repositories/pypi-virtual"
+PROXY_URL="${PROXY_URL:-http://localhost:8080/registries/mypypi/repositories/pypi-proxy}"
+VIRTUAL_URL="${VIRTUAL_URL:-http://localhost:8080/registries/mypypi/repositories/pypi-virtual}"
 
 echo "Installing real package from proxy..."
 python3 -m venv proxy-venv

@@ -73,13 +73,44 @@ jobs:
           echo "Waiting for Dex to be ready..."
           ./wait-for http://dex:5556/dex/healthz -t 30 -- echo "Dex is up!"
 
+      - name: Generate Dex Token
+        run: |
+          # Use -u to pass the client id and secret
+          # Use --data-urlencode to pass the user credentials
+          TOKEN_RESPONSE=$(curl -s -X POST 'http://dex:5556/dex/token' \
+            -u "test-client:test-secret" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=password' \
+            --data-urlencode 'scope=openid profile email' \
+            --data-urlencode 'username=admin@valisgo.local' \
+            --data-urlencode 'password=password')
+
+          # Extract the id_token (or access_token) using jq
+          ID_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .id_token)
+          
+          # Mask it in the logs (optional but good practice)
+          echo "::add-mask::$ID_TOKEN"
+          
+          # Make it available to downstream test steps via the CLI's standard env var
+          echo "VALISGO_TOKEN=$ID_TOKEN" >> $GITHUB_ENV
+
       - name: Start Valisgo Server
         run: |
           ./bin/valisgo &
           echo "Waiting for Valisgo server to be ready..."
           ./wait-for http://localhost:8080 -t 30 -- echo "Valisgo is up!"
 
+      - name: Start CLI Proxy
+        run: |
+          go run ./cmd/cli proxy --port 9000 --upstream http://localhost:8080 &
+          echo "Waiting for CLI Proxy to be ready..."
+          ./wait-for localhost:9000 -t 30 -- echo "CLI Proxy is up!"
+
       - name: Run PyPI Integration Test
+        env:
+          REGISTRY_URL: http://localhost:9000/registries/mypypi/repositories/myrepo
+          PROXY_URL: http://localhost:9000/registries/mypypi/repositories/pypi-proxy
+          VIRTUAL_URL: http://localhost:9000/registries/mypypi/repositories/pypi-virtual
         run: bash tests/integration/pypi/test.sh
 
       - name: Run File Integration Test

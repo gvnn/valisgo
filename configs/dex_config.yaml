@@ -33,3 +33,7 @@ staticPasswords:
     hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
     username: "admin"
     userID: "admin@valisgo.local"
+
+# Allow the password grant type using the local database for integration testing
+oauth2:
+  passwordConnector: local
