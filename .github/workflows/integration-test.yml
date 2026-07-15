@@ -78,7 +78,7 @@ jobs:
           # Use -u to pass the client id and secret
           # Use --data-urlencode to pass the user credentials
           TOKEN_RESPONSE=$(curl -s -X POST 'http://dex:5556/dex/token' \
-            -u "test-client:test-secret" \
+            -u "valisgo-cli:" \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             --data-urlencode 'grant_type=password' \
             --data-urlencode 'scope=openid profile email' \

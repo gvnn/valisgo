@@ -11,7 +11,7 @@ storage:
 
 web:
   http: 0.0.0.0:5556
-  allowedOrigins: ['*']
+  allowedOrigins: ["*"]
 
 staticClients:
   - id: valisgo-cli
