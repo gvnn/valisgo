@@ -60,7 +60,7 @@ configs:
       staticClients:
         - id: valisgo-cli
           redirectURIs:
-            - http://localhost:8585/callback
+            - http://0.0.0.0:8585/callback
           name: valisgo-cli
           public: true
 
@@ -69,6 +69,6 @@ configs:
       staticPasswords:
         - email: "admin@valisgo.local"
           # This is the bcrypt hash for the word: "password"
-          hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTTsOW3.1sVyiPi2vT8wXF.q.Hym"
+          hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
           username: "admin"
           userID: "admin@valisgo.local"

@@ -53,8 +53,9 @@ func init() {
 
 	defaultIssuer := os.Getenv("OIDC_ISSUER")
 	if defaultIssuer == "" {
-		defaultIssuer = "http://127.0.0.1:5556/dex"
+		defaultIssuer = "http://dex:5556/dex"
 	}
+
 	defaultClientID := os.Getenv("OIDC_CLIENT_ID")
 	if defaultClientID == "" {
 		defaultClientID = "valisgo-cli"
