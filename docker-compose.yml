@@ -63,6 +63,11 @@ configs:
             - http://0.0.0.0:8585/callback
           name: valisgo-cli
           public: true
+        - id: valisgo-web
+          redirectURIs:
+            - http://localhost:8080/callback
+          name: valisgo-web
+          secret: web-secret-key
 
       enablePasswordDB: true
 
