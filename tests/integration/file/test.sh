@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-REGISTRY_URL="http://localhost:8080/registries/myfile/repositories/myrepo"
+REGISTRY_URL="${REGISTRY_URL:-http://localhost:8080/registries/myfile/repositories/myrepo}"
 
 echo "Uploading test file..."
 echo "Hello, Valisgo File Registry!" > test-upload.txt

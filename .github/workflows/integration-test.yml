@@ -114,13 +114,25 @@ jobs:
         run: bash tests/integration/pypi/test.sh
 
       - name: Run File Integration Test
+        env:
+          REGISTRY_URL: http://localhost:9000/registries/myfile/repositories/myrepo
         run: bash tests/integration/file/test.sh
 
       - name: Run NPM Integration Test
+        env:
+          PROXY_URL: http://localhost:9000/registries/mynpm/repositories/npm-proxy/
+          LOCAL_URL: http://localhost:9000/registries/mynpm/repositories/npm-local/
+          VIRTUAL_URL: http://localhost:9000/registries/mynpm/repositories/npm-virtual/
         run: bash tests/integration/npm/test.sh
 
       - name: Run Go Integration Test
+        env:
+          PROXY_URL: http://localhost:9000/registries/mygo/repositories/go-proxy
+          LOCAL_URL: http://localhost:9000/registries/mygo/repositories/go-local
+          VIRTUAL_URL: http://localhost:9000/registries/mygo/repositories/go-virtual
         run: bash tests/integration/golang/test.sh
 
       - name: Run management API test
+        env:
+          VALISGO_MANAGE_URL: http://localhost:9000/manage
         run: make test-integration
