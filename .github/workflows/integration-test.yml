@@ -22,12 +22,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      dex:
-        image: dexidp/dex
-        ports:
-          - 5556:5556
-        volumes:
-          - ${{ github.workspace }}/configs/dex_config.yaml:/etc/dex/config.docker.yaml:ro
 
     steps:
       - uses: actions/checkout@v7
@@ -64,11 +58,24 @@ jobs:
           make migrate-apply
           make seed
 
+      - name: Download wait-for
+        run: |
+          curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
+          chmod +x wait-for
+
+      - name: Start Dex service
+        run: |
+          docker run -d --name dex \
+            -p 5556:5556 \
+            -v ${{ github.workspace }}/configs/dex_config.yaml:/etc/dex/config.docker.yaml:ro \
+            dexidp/dex
+          echo "127.0.0.1 dex" | sudo tee -a /etc/hosts
+          echo "Waiting for Dex to be ready..."
+          ./wait-for http://dex:5556/dex/healthz -t 30 -- echo "Dex is up!"
+
       - name: Start Valisgo Server
         run: |
           ./bin/valisgo &
-          curl -sSL https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -o wait-for
-          chmod +x wait-for
           echo "Waiting for Valisgo server to be ready..."
           ./wait-for http://localhost:8080 -t 30 -- echo "Valisgo is up!"
 
