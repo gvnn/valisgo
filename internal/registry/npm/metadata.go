@@ -101,7 +101,7 @@ func (p *NPMProtocol) proxyMetadata(req *http.Request, reg *domain.Registry, rep
 
 			proxyTarballURL := url.URL{
 				Scheme: scheme,
-				Host:   req.Host,
+				Host:   getHost(req),
 				Path:   path.Join("/registries", reg.Name, "repositories", repo.Name, pkgName, "-", filename),
 			}
 
@@ -142,7 +142,7 @@ func (p *NPMProtocol) localMetadata(req *http.Request, reg *domain.Registry, rep
 	for _, f := range files {
 		vURL := url.URL{
 			Scheme: scheme,
-			Host:   req.Host,
+			Host:   getHost(req),
 			Path:   path.Join("/registries", reg.Name, "repositories", repo.Name, pkgName, "-", f.Filename),
 		}
 
