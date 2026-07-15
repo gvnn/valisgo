@@ -1,0 +1,35 @@
+# Use internal service name as issuer - this must match the provider_url
+issuer: http://dex:5556/dex
+
+# Also provide a public issuer endpoint for browsers
+issuerRotation:
+  # Keep old issuer id for existing token validation
+  - issuer: http://localhost:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+  allowedOrigins: ['*']
+
+staticClients:
+  - id: valisgo-cli
+    redirectURIs:
+      - http://0.0.0.0:8585/callback
+    name: valisgo-cli
+    public: true
+  - id: valisgo-web
+    redirectURIs:
+      - http://localhost:8080/callback
+    name: valisgo-web
+    secret: web-secret-key
+
+enablePasswordDB: true
+
+staticPasswords:
+  - email: "admin@valisgo.local"
+    # This is the bcrypt hash for the word: "password"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "admin"
+    userID: "admin@valisgo.local"
