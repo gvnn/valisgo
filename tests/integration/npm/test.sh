@@ -18,7 +18,6 @@ VIRTUAL_URL="${VIRTUAL_URL:-http://localhost:8080/registries/mynpm/repositories/
 
 echo "Publishing dummy package..."
 cd tests/integration/npm/dummy-pkg
-echo "//localhost:8080/registries/mynpm/repositories/npm-local/:_authToken=\"dummy-token\"" > .npmrc
 npm version patch
 npm publish --registry="$LOCAL_URL"
 
